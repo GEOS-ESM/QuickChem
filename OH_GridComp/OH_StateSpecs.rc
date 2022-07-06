@@ -1,0 +1,113 @@
+schema_version: 2.0.0
+component: OH
+
+category: IMPORT
+#------------------------------------------------------------------------------------------
+#  VARIABLE            | DIMENSIONS  |          Additional Metadata
+#------------------------------------------------------------------------------------------
+     NAME     | UNITS    | DIMS | VLOC | COND                                     | LONG NAME
+#------------------------------------------------------------------------------------------
+# example of CONDITION:
+# OH_SRC      | 1        | xy   | N    | scheme == 'ginoux' .OR. scheme == 'k14'  | erod - dust emissions
+#........................................................................................
+# these are now conditional imports, or computed from other fields
+#TROPP        | Pa       | xy   | N    |                                          | Tropopause Pressure
+#TV           | K        | xyz  | C    |                                          | Air Virtual Temperature
+#PLE          | Pa       | xyz  | E    |                                          | air_pressure
+#........................................................................................
+ oh_GMITO3    | ???      | xy   | N    |                                          | GMITO3  from climatology
+ oh_GMITTO3   | ???      | xy   | N    |                                          | GMITTO3 from climatology
+ oh_ALBUV     | ???      | xy   | N    |                                          | ALBUV from climatology
+#........................................................................................
+ oh_NO2       | ???      | xyz  | C    |                                          | NO2   from climatology
+ oh_O3        | ???      | xyz  | C    |                                          | O3    from climatology
+ oh_ISOP      | ???      | xyz  | C    |                                          | ISOP  from climatology
+ oh_ACET      | ???      | xyz  | C    |                                          | ACET  from climatology
+ oh_C2H6      | ???      | xyz  | C    |                                          | C2H6  from climatology
+ oh_C3H8      | ???      | xyz  | C    |                                          | C3H8  from climatology
+ oh_PRPE      | ???      | xyz  | C    |                                          | PRPE  from climatology
+ oh_ALK4      | ???      | xyz  | C    |                                          | ALK4  from climatology
+ oh_MP        | ???      | xyz  | C    |                                          | MP    from climatology
+ oh_H2O2      | ???      | xyz  | C    |                                          | H2O2  from climatology
+ oh_CH2O      | ???      | xyz  | C    |                                          | CH2O  from climatology
+ oh_OH        | ???      | xyz  | C    |                                          | OH    from climatology
+
+category: EXPORT
+#----------------------------------------------------------------------------------------
+#  VARIABLE              | DIMENSIONS  |          Additional Metadata
+#----------------------------------------------------------------------------------------
+ NAME            | UNITS   | DIMS | VLOC | UNGRIDDED | LONG NAME
+#----------------------------------------------------------------------------------------
+ DIAG_SZA        | ???     | xy   | N    |           | Diagnostic for SZA
+ DIAG_LAT        | ???     | xy   | N    |           | Diagnostic for LAT
+ DIAG_GMISTRATO3 | ???     | xy   | N    |           | Diagnostic for GMISTRATO3
+ DIAG_ALBUV      | ???     | xy   | N    |           | Diagnostic for ALBUV
+#........................................................................................
+ DIAG_T_avg24    | ???     | xyz  | C    |           | Diagnostic for T from coupler
+ DIAG_TAUCLWDN   | ???     | xyz  | C    |           | Diagnostic for TAUCLWDN
+ DIAG_TAUCLIDN   | ???     | xyz  | C    |           | Diagnostic for TAUCLIDN
+ DIAG_TAUCLIUP   | ???     | xyz  | C    |           | Diagnostic for TAUCLIUP
+ DIAG_TAUCLWUP   | ???     | xyz  | C    |           | Diagnostic for TAUCLWUP
+ DIAG_AODUP      | ???     | xyz  | C    |           | Diagnostic for AODUP
+ DIAG_AODDN      | ???     | xyz  | C    |           | Diagnostic for AODDN
+ DIAG_T_in_OH    | ???     | xyz  | C    |           | Diagnostic for T in OH
+ DIAG_PL         | ???     | xyz  | C    |           | Diagnostic for PL in OH
+ DIAG_T          | ???     | xyz  | C    |           | Diagnostic for T in OH
+ DIAG_CO         | ???     | xyz  | C    |           | Diagnostic for CO in OH
+ DIAG_CH4        | ???     | xyz  | C    |           | Diagnostic for CH4 in OH
+ DIAG_CLOUD      | ???     | xyz  | C    |           | Diagnostic for CLOUD in OH
+ DIAG_QV         | ???     | xyz  | C    |           | Diagnostic for QV in OH
+ DIAG_OH_M2G     | ???     | xyz  | C    |           | Diagnostic of OH
+ DIAG_SC_BC      | ???     | xyz  | C    |           | Diagnostic of SCACOEF for BC
+ DIAG_SC_OC      | ???     | xyz  | C    |           | Diagnostic of SCACOEF for OC
+ DIAG_SC_DU      | ???     | xyz  | C    |           | Diagnostic of SCACOEF for DU
+ DIAG_SC_SU      | ???     | xyz  | C    |           | Diagnostic of SCACOEF for SU
+ DIAG_SC_SS      | ???     | xyz  | C    |           | Diagnostic of SCACOEF for SS
+ DIAG_SC_NI      | ???     | xyz  | C    |           | Diagnostic of SCACOEF for NI
+ DIAG_AOD        | ???     | xyz  | C    |           | Diagnostic of AOD
+ DIAG_NDWET      | ???     | xyz  | C    |           | Diagnostic of Moist Air NUMDENS
+#........................................................................................
+ DIAG_ZLE        | ???     | xyz  | E    |           | Diagnostic of ZLE
+#........................................................................................
+ OH_boost        | mol/mol | xyz  | C    |           | OH from XGBoost
+
+category: INTERNAL
+#----------------------------------------------------------------------------------------
+#  VARIABLE                | DIMENSION        |          Additional Metadata
+#----------------------------------------------------------------------------------------
+  NAME | UNITS | DIMS | VLOC | RESTART              | ADD2EXPORT | FRIENDLYTO | LONG NAME
+#----------------------------------------------------------------------------------------
+#OH    |kg kg-1  | xyz  | C    | MAPL_RestartOptional | T | DYNAMICS:TURBULENCE:MOIST | Hydroxyl Radical
+ OH    |molec/cm3| xyz  | C    | MAPL_RestartOptional | T |                           | Hydroxyl Radical
+
+
+
+#********************************************************
+#
+# Legend
+#
+#------------------------------------------------------------------
+# Column label | MAPL keyword/interpretation |  Default
+#--------------|---------------------------------------------------
+# NAME         | short_name                  |
+# UNITS        | units                       |
+# DIMS         | dims                        |
+# VLOC         | VLocation                   | MAPL_VLocationNone
+# LONG NAME    | long_name                   |
+# COND         | if (<logical-expr>) then    |  .FALSE.
+# NUM_SUBTILES | num_subtiles
+# ...
+#------------------------------------------------------------------
+#
+#--------------------------------------------
+# Entry alias  | Column | MAPL keyword/interpretation
+#--------------|-----------------------------
+# xyz          | DIMS   | MAPL_HorzVert
+# xy           | DIMS   | MAPL_HorzOnly
+# z            | DIMS   | MAPL_VertOnly  (plus ungridded)
+# C            | VLOC   | MAPL_VlocationCenter
+# E            | VLOC   | MAPL_VlocationEdge
+# N            | VLOC   | MAPL_VlocationNone
+#--------------------------------------------
+
+

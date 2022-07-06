@@ -1,0 +1,32 @@
+#
+# Resource file OH parameters. 
+#
+
+# Example of vector, read in QC_EnvironmentMod.F90:
+#particle_radius_microns: 0.73 1.4 2.4 4.5 8.0
+
+# Example of vector, read in XX_GridCompMod.F90:
+#radius_lower: 0.1 1.0 1.8 3.0 6.0
+
+# Molecular weight of species [kg mole-1]
+# Read in QC_EnvironmentMod.F90:
+#molecular_weight: 0.1  0.1  0.1  0.1  0.1
+
+nbins: 1
+
+Untuned_GBoostFile: /discover/nobackup/mmanyin/CCM/run/oh26/OH_model/OH_NoTune.bin
+XGBoost_0.81_File: /discover/nobackup/mmanyin/CCM/run/oh26/OH_model/OH_Tuned_M01.bin
+XGBoost_1.6.0_File: /discover/nobackup/mmanyin/CCM/OH_Boost/XGBoost_1.6.0/xgboh_UpDwnALBUVSZAAll_NoGMIALB_NoScale_NoRegressor_NewXGB_M01.model
+XGBoostFile: /discover/nobackup/mmanyin/CCM/OH_Boost/XGBoost_1.6.0/xgboh_UpDwnALBUVSZAAll_NoGMIALB_NoScale_NoRegressor_NewXGB_M01.model
+
+#
+#  Options are  PRECOMPUTED, ONLINE_INST, ONLINE_AVG24
+OH_data_source: ONLINE_AVG24
+#
+#  If true,  OH imports both the instantaneous and 24hr average fields for T, P, etc
+#            This allows for the use of instantaneous fields when tavg fields are all zero.
+#  If false, OH imports only the 24hr average fields; NOTE - they must be in the OH_import_rst
+spinup_24hr_imports: T
+
+# For GOCART2G scattering coefficient, which wavelength to use
+wavelength_for_scacoef: 550

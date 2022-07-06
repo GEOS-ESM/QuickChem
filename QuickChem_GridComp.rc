@@ -1,0 +1,26 @@
+#
+# !RESOURCE: QuickChem_GridComp.rc --- QC resource file
+#
+#  DESCRIPTION:
+#  The QuickChem resource file is used to control basic
+#  properties of the QuickChem Grid Components. Instances are
+#  defined here. Default is the data component.
+#
+#  Holdover from GOCART2G:
+#  Only the FIRST entry in the ACTIVE_INSTANCE_XX is given as
+#  the AERO_PROVIDER.   (Actually QuickChem does not provide aerosols!)
+#
+# !REVISION HISTORY:
+#
+#  2022.02.04  M.Manyin   Adapted from GOCART2G
+#--------------------------------------------------------------------
+
+                        # &Label Active Constituents
+
+# Include the constituent in the simulation?
+# ----------------------------------------------------
+ACTIVE_INSTANCES_OH:  OH # OH.1  OH.2  OH.3
+PASSIVE_INSTANCES_OH:  
+
+ACTIVE_INSTANCES_XX:  XX # XX.1  XX.2  XX.3
+PASSIVE_INSTANCES_XX:  
