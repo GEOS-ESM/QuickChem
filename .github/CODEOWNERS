@@ -1,0 +1,11 @@
+# This is a comment.
+# Each line is a file pattern followed by one or more owners.
+# Order is important; the last matching pattern takes the most
+# precedence.
+
+# This makes all files here owned by the QuickChem Team by default
+*              @GEOS-ESM/quickchem-team
+
+# The GEOS CMake Team is also a CODEOWNER for the CMakeLists.txt files in this repository 
+CMakeLists.txt @GEOS-ESM/cmake-team @GEOS-ESM/quickchem-team
+
