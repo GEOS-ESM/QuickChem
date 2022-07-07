@@ -3,9 +3,9 @@
 # Order is important; the last matching pattern takes the most
 # precedence.
 
-# This makes all files here owned by the Chem Gatekeepers by default
-*                        @GEOS-ESM/quickchem-team
+# This makes all files here owned by the QuickChem Team by default
+*              @GEOS-ESM/quickchem-team
 
-# The GEOS CMake Team is the CODEOWNER for the CMakeLists.txt files in this repository
-CMakeLists.txt           @GEOS-ESM/cmake-team
+# The GEOS CMake Team is also a CODEOWNER for the CMakeLists.txt files in this repository 
+CMakeLists.txt @GEOS-ESM/cmake-team @GEOS-ESM/quickchem-team
 
