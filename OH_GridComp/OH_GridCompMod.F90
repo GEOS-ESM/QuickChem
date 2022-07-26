@@ -39,6 +39,7 @@ module OH_GridCompMod
 
 ! !REVISION HISTORY:
 !  February 2022: M Manyin ported OH from Icarus version
+!  July     2022: M Manyin made QuickChem a separate repository, and optimized OH
 
 !EOP
 !===========================================================================
@@ -61,10 +62,17 @@ module OH_GridCompMod
 !  If true, the model is within the first 24 hours of integration, daily means are not available
        LOGICAL :: use_inst_values
 
-!  Get this from GOCART2G
+!  If true, only call Boost during the first timestep of the day
+       LOGICAL :: compute_once_per_day
+
+!  Get Scattering Coefficient values from GOCART2G
        INTEGER :: n_wavelengths_profile   ! Size of the 4th dimension for SCACOEF fields
        REAL    :: wavelength_for_scacoef  ! Wavelength value to be used
        INTEGER :: wavelength_index        ! Index of the desired value within the 4th dimension
+
+!  Store the most recent version of OH from Boost in this variable,
+!  which will persist from one timestep to the next:
+       REAL, ALLOCATABLE         ::   OH_ML(:,:,:) ! top-down  (gather the answer in this)
 
    END TYPE OH_GridComp
 
@@ -72,6 +80,7 @@ module OH_GridCompMod
 !      Datasets used as input for the XGBoost model of OH, as specified by Dan Anderson
 !        M2G    ==  from MERRA2-GMI
 !        ONLINE ==  ONLINE_instantaneous, ONLINE_daily_mean, or PRECOMPUTED (M2G)
+!        To save on unnecessary allocation, all entries are pointers
        REAL, POINTER, DIMENSION(:,:  ) ::  LAT                ! from the GEOS grid
        REAL, POINTER, DIMENSION(:,:,:) ::  PL                 ! ONLINE
        REAL, POINTER, DIMENSION(:,:,:) ::  T                  ! ONLINE
@@ -108,7 +117,8 @@ module OH_GridCompMod
 contains
 
 !-------------------------------------------------------------------------
-   subroutine predict_OH_with_XGB( xgb_fname, icount, jcount, kcount, pl, tropp, bb, OH_ML, rc)
+   subroutine predict_OH_with_XGB( xgb_fname, icount, jcount, kcount,  &
+                                   dynamic_k_range, tropp_min, pl, tropp, bb, OH_ML, rc)
 
 ! !USES:
 
@@ -120,6 +130,8 @@ contains
 
    character(len=*),          intent(IN   ) :: xgb_fname
    integer,                   intent(IN   ) :: icount, jcount, kcount   ! assume all indices start at 1
+   LOGICAL,                   intent(IN   ) :: dynamic_k_range  ! if TRUE, restrict slab using pl and tropp
+   REAL,                      intent(IN   ) :: tropp_min    ! Pa - if NOT dynamic_k_range, use this min pressure
    REAL, ALLOCATABLE,         intent(IN   ) :: pl(:,:,:)    ! Pa - pressure at midlevel
    REAL, POINTER,             intent(IN   ) :: tropp(:,:)   ! Pa - tropopause pressure
    TYPE(OH_BOOST_INPUT_DATA), intent(IN   ) :: bb        ! XGBoost input data pointers
@@ -143,49 +155,60 @@ contains
    integer            :: status
    character(len=ESMF_MAXSTR) :: Iam
 
-   integer :: n
+! Calling XGBoost using the wrapper library of Christoph Keller that supports FORTRAN -> C
 
-! Simple interface showing an example on how to call XGBoost from Fortran 
-! by invoking the C bindings defined in fortran_api.F90.
-! 
-! As an example, this reads a pre-saved booster object from file 'bst.bin' 
-! and then makes a prediction using a vector of all ones as input. The booster
-! object is assumed to take 5 input arguments and produce one target value. 
-! The booster model can be trained in python and then written to binary file, 
-! as e.g. shown in xgb_train.py. 
-!
-! History:
-! 2019-10-09 - christoph.a.keller@nasa.gov - Initial version
+! 2022-07-22 - manyin - based on the sample code that Christoph provides with the library
 ! ----------------------------------------------------------------------------
 !use iso_c_binding
 !use xgb_fortran_api
 !implicit none
 
 !--- Local variables
-!integer                    :: rc
- integer(c_int64_t)         :: xx_nrow, xx_ncol
+ integer(c_int64_t)         :: xx_prediction_count  ! how many gridboxes to predict - varies
+                                                    ! used in INIT and RUN
  ! for booster object 
- character(len=255)         :: xx_fname_bst
- integer(c_int64_t)         :: xx_dmtrx_len
- type(c_ptr)                :: xx_bst
+ integer(c_int64_t)         :: xx_param_count       ! hard coded - number of params using in training
+                                                    ! used in INIT and RUN
+ ! for booster object 
+ character(len=255)         :: xx_fname_bst         ! set to xgb_fname
+                                                    ! used in INIT
+
+ integer(c_int64_t)         :: xx_dmtrx_len         ! hard coded below
+                                                    ! used in INIT
+
+ type(c_ptr),          save :: xx_bst               ! INIT   - create and load
+                                                    ! RUN    - use
+                                                    ! FINAL  - free
  ! for XGDMatrix object
- type(c_ptr)                :: xx_dmtrx 
- integer(c_int64_t)         :: xx_dm_nrow, xx_dm_ncol
- real(c_float), allocatable :: xx_carr(:)
- character(len=255)         :: xx_fname
+ type(c_ptr)                :: xx_dmtrx             ! INIT - create, use and free
+                                                    ! RUN  - create, use and free
+
+!integer(c_int64_t)         :: xx_dm_nrow, xx_dm_ncol   ! INIT - just check dims
+
+ real(c_float), allocatable :: xx_carr(:,:)         ! allocated every time in RUN
+ real(c_float), allocatable :: xx_carr_small(:,:)   ! allocated every time in INIT
+
  ! for prediction
- integer(c_int)             :: xx_option_mask, xx_ntree_limit, xx_training
- type(c_ptr)                :: xx_cpred
- integer(c_int64_t)         :: xx_pred_len 
- real(c_float), pointer     :: xx_pred(:)
+ integer(c_int)             :: xx_option_mask, xx_ntree_limit, xx_training  ! RUN
+
+ type(c_ptr)                :: xx_cpred  ! RUN
+
+ integer(c_int64_t)         :: xx_pred_len   ! RUN
+
+ real(c_float), pointer     :: xx_pred(:)  ! RUN
 
  integer :: i,j,k
+ integer :: ksubcount   ! the vertical dimension of the slab sent to Boost
+ integer :: k1,k2       ! the levels where predictions are needed
 
- integer :: m  ! index into xx_carr
+ integer :: m           ! index into xx_carr
 
-!--- Parameter
+ logical,              save :: first_time    = .TRUE.
+
+!--- Parameters
  ! missing value 
- real(c_float), parameter :: xx_miss = -999.0
+ real(c_float), parameter :: xx_miss = -999.0   ! used in INIT and RUN
+
  ! debug flag
  logical, parameter       :: debug    = .false.
 
@@ -195,152 +218,177 @@ contains
 
  ! Dan's OH model
  ! Dimension of input array. We assume it's 1x27 (1 prediction, 27 input variables)
-!xx_fname_bst = '/discover/nobackup/dcanders/QuickChem/Data/RTModels/xgboh_UpDwnALBUVSZAAll_NoGMIALB_NoScale_WithCH4_Depth18_eta1_100Trees_M07.joblib.dat'
-!xx_fname_bst = '/discover/nobackup/mmanyin/CCM/run/oh26/OH_model.bin'
-!xx_fname_bst = '/discover/nobackup/mmanyin/CCM/run/oh26/OH_model/OH_NoTune.bin'
+ !xx_fname_bst = '/discover/nobackup/dcanders/QuickChem/Data/RTModels/xgboh_UpDwnALBUVSZAAll_NoGMIALB_NoScale_WithCH4_Depth18_eta1_100Trees_M07.joblib.dat'
+ !xx_fname_bst = '/discover/nobackup/mmanyin/CCM/run/oh26/OH_model.bin'
+ !xx_fname_bst = '/discover/nobackup/mmanyin/CCM/run/oh26/OH_model/OH_NoTune.bin'
  xx_fname_bst = TRIM(xgb_fname)
- xx_nrow      = 1
- xx_ncol      = 27
+ xx_param_count      = 27     !  This entire file would need to change significantly, if the parameter count were to change
 
- ! Array to hold input values
- allocate(xx_carr(xx_ncol))
- xx_carr(:) = 0.0
- ! Settings for prediction 
- xx_option_mask = 0
- xx_ntree_limit = 100  ! Per Dan: "The final version of the parameterization has 100 trees"
-                       ! Tried value 0, apparently zero-diff
- xx_training    = 0    ! actually FALSE or TRUE - new for v1.6.0
-
-!--- Starts here
- if(debug) write(*,*) 'Starting XGBoost program'
-
-!--- Load booster object
- ! Create (dummy) XGDMatrix - this is required in order to create the booster object below
- rc = XGDMatrixCreateFromMat_f(xx_carr, xx_nrow, xx_ncol, xx_miss, xx_dmtrx)
- if(rc /= 0) write(*,*) __FILE__,__LINE__,'Failed in XGDMatrixCreateFromMat_f, Return code: ',rc
- VERIFY_(rc)
-
- ! Check XGDMatrix dimensions
- ! number of rows/cols in xx_dmtrx
- rc = XGDMatrixNumRow_f(xx_dmtrx, xx_dm_nrow) 
- if(rc /= 0) write(*,*) __FILE__,__LINE__,'Failed in XGDMatrixNumRow_f, Return code: ',rc
- VERIFY_(rc)
-
- ! number of rows/cols in xx_dmtrx
- rc = XGDMatrixNumCol_f(xx_dmtrx, xx_dm_ncol) 
- if(rc /= 0) write(*,*) __FILE__,__LINE__,'Failed in XGDMatrixNumCol_f, Return code: ',rc
- VERIFY_(rc)
-
-!            write(*,*) 'Numbers of rows, cols of DMatrix object: ',xx_dm_nrow,xx_dm_ncol
-!                        Numbers of rows, cols of DMatrix object:           1         27
+    ! Settings for prediction 
+    xx_option_mask = 0
+    xx_ntree_limit = 0    ! Per Dan: "The final version of the parameterization has 100 trees"
+                          ! Tried value 100 and 0, apparently zero-diff
+                          ! 100 seemed to take longer
+    xx_training    = 0    ! actually FALSE or TRUE - new for v1.6.0
 
 
- ! now create XGBooster object. Content will be loaded into it next
- xx_dmtrx_len = 0
- ! xx_dmtrx_len = 27 - this results in a Seg Fault
- rc = XGBoosterCreate_f(xx_dmtrx,xx_dmtrx_len,xx_bst)
- if(rc /= 0) write(*,*) __FILE__,__LINE__,'Failed in XGBoosterCreate_f, Return code: ',rc
- VERIFY_(rc)
+    if(debug) write(*,*) 'Starting predict_OH_with_XGB'
 
- ! load XGBooster model from binary file
- if(rc /= 0) write(*,*) 'Reading '//trim(xx_fname_bst)
- rc = XGBoosterLoadModel_f(xx_bst,xx_fname_bst)
- if(rc /= 0) write(*,*) __FILE__,__LINE__,'Failed in XGBoosterLoadModel_f, Return code: ',rc
- VERIFY_(rc)
+!!!!!!!!!!!!!!!!!!!!!!!!!   INIT
 
- rc = XGDMatrixFree_f(xx_dmtrx)
- if(rc /= 0) write(*,*) __FILE__,__LINE__,'Failed in XGDMatrixFree_f, Return code: ',rc
- VERIFY_(rc)
+       ONE_TIME_SETUP: IF ( first_time ) THEN
 
 
-      DO i=1,icount
-      DO j=1,jcount
+         allocate(xx_carr_small(xx_param_count,1),__STAT__)   ! Just 1 prediction
+         xx_carr_small(:,:) = 0.0
 
-! 2D entries
+         !--- Load booster object in 3 steps
 
-      xx_carr( 1) = bb%LAT(       i,j)
-      xx_carr(22) = bb%GMISTRATO3(i,j)
-      xx_carr(23) = bb%ALBUV(     i,j)
-      xx_carr(27) = bb%SZA(       i,j)
+         ! Create (dummy) XGDMatrix
+         rc = XGDMatrixCreateFromMat_f( xx_carr_small, 1, xx_param_count, xx_miss, xx_dmtrx )
+         _ASSERT(rc==0,'Failed in XGDMatrixCreateFromMat_f')
 
-! 3D entries
+         ! Create XGBooster object
+         xx_dmtrx_len = 0    ! setting this to 27 results in a Seg Fault
+         rc = XGBoosterCreate_f( xx_dmtrx, xx_dmtrx_len, xx_bst )
+         _ASSERT(rc==0,'Failed in XGBoosterCreate_f')
 
-      DO k=1,kcount
+         ! load XGBooster model from binary file
+         if(debug) write(*,*) 'Reading '//trim(xx_fname_bst)
+         rc = XGBoosterLoadModel_f( xx_bst, xx_fname_bst )
+         _ASSERT(rc==0,'Failed in XGBoosterLoadModel_f')
 
-!      Units of Pa for both:
-       IF ( pl(i,j,k) .GT. tropp(i,j) ) THEN
+         rc = XGDMatrixFree_f( xx_dmtrx )
+         _ASSERT(rc==0,'Failed in XGDMatrixFree_f')
 
-        !!!!!!!!!!!!!
+         if (allocated (xx_carr_small) ) deallocate(xx_carr_small)
 
-        ! LAT (entry 1)  is 2D
+         first_time  = .FALSE.
 
-        xx_carr( 2) = bb%PL(      i,j,k) / 100.0  ! convert Pa to hPa
-        xx_carr( 3) = bb%T(       i,j,k)
-        xx_carr( 4) = bb%NO2(     i,j,k)
-        xx_carr( 5) = bb%O3(      i,j,k)
-        xx_carr( 6) = bb%CH4(     i,j,k)
-        xx_carr( 7) = bb%CO(      i,j,k)
-        xx_carr( 8) = bb%ISOP(    i,j,k)
-        xx_carr( 9) = bb%ACET(    i,j,k)
-        xx_carr(10) = bb%C2H6(    i,j,k)
-        xx_carr(11) = bb%C3H8(    i,j,k)
-        xx_carr(12) = bb%PRPE(    i,j,k)
-        xx_carr(13) = bb%ALK4(    i,j,k)
-        xx_carr(14) = bb%MP(      i,j,k)
-        xx_carr(15) = bb%H2O2(    i,j,k)
-        xx_carr(16) = bb%TAUCLWDN(i,j,k)
-        xx_carr(17) = bb%TAUCLIDN(i,j,k)
-        xx_carr(18) = bb%TAUCLIUP(i,j,k)
-        xx_carr(19) = bb%TAUCLWUP(i,j,k)
-        xx_carr(20) = bb%CLOUD(   i,j,k)
-        xx_carr(21) = bb%QV(      i,j,k)
+       END IF  ONE_TIME_SETUP
 
-        ! GMISTRATO3 (entry 22)  is 2D
-        ! ALBUV      (entry 23)  is 2D
+!!!!!!!!!!!!!!!!!!!!!!!!!   RUN
 
-        xx_carr(24) = bb%AODUP(   i,j,k)
-        xx_carr(25) = bb%AODDN(   i,j,k)
-        xx_carr(26) = bb%CH2O(    i,j,k)
+       IF ( dynamic_k_range ) THEN
+         ! Determine the subset of K we need to work on:
+         ! check the count in each column, and take the max
+         ksubcount=0
+         DO j=1,jcount
+         DO i=1,icount
+           k = COUNT( pl(i,j,:) .GT. tropp(i,j) )   ! Note the same comparison at @@@
+           IF ( k > ksubcount ) ksubcount = k
+         END DO
+         END DO
+       ELSE
+         ! double check that the min pressure is sufficiently low
+         k = COUNT( tropp .LE. tropp_min )
+         _ASSERT(k==0,'OH Prediction: Minimum tropopause pressure is not low enough!')
 
-        ! SZA        (entry 27)  is 2D
-
-        !!!!!!!!!!!!!
-
-        rc = XGDMatrixCreateFromMat_f(xx_carr, xx_nrow, xx_ncol, xx_miss, xx_dmtrx)
-        if(rc /= 0) write(*,*) __FILE__,__LINE__,'Failed in XGDMatrixCreateFromMat_f, Return code: ',rc
-        if(rc /= 0) then
-         DO m=1,xx_ncol
-           print*,'  Failing - xx_carr ', m, xx_carr(m)
-         end do
-        endif
-        VERIFY_(rc)
-
-        ! Make prediction. The result will be stored in c pointer xx_cpred 
-        rc = XGBoosterPredict_f(xx_bst,xx_dmtrx,xx_option_mask,xx_ntree_limit,xx_training,xx_pred_len,xx_cpred)
-        if(rc /= 0) write(*,*) __FILE__,__LINE__,'Failed in XGBoosterPredict_f, Return code: ',rc
-        VERIFY_(rc)
-
-        ! Link to fortran pointer xx_pred 
-        call c_f_pointer(xx_cpred, xx_pred, [xx_pred_len])   !  len is 1
-
-        OH_ML(i,j,k) = 10.0 **     (xx_pred(1))   ! yields mol/mol
-
-        rc = XGDMatrixFree_f(xx_dmtrx)
-        if(rc /= 0) write(*,*) __FILE__,__LINE__,'Failed in XGDMatrixFree_f, Return code: ',rc
-        VERIFY_(rc)
-
+         ! As above, but compare to a constant
+         ksubcount=0
+         DO j=1,jcount
+         DO i=1,icount
+           k = COUNT( pl(i,j,:) .GT. tropp_min )   ! Note the same comparison at @@@
+           IF ( k > ksubcount ) ksubcount = k
+         END DO
+         END DO
        END IF
-      END DO
-      END DO
-      END DO
+
+       k1 = kcount - ksubcount + 1
+       k2 = kcount
+
+       ! Array to hold input values
+       ! (reverse the regular row/col order because we are calling C)
+       xx_prediction_count  = icount * jcount * ksubcount
+       allocate(xx_carr(xx_param_count,xx_prediction_count),__STAT__)
+
+       m=1
+       DO k=k1,k2
+       DO j= 1,jcount
+       DO i= 1,icount
+
+         xx_carr( 1,m) = bb%LAT(       i,j  )          ! 2D
+         xx_carr( 2,m) = bb%PL(        i,j,k) / 100.0  ! convert Pa to hPa
+         xx_carr( 3,m) = bb%T(         i,j,k)
+         xx_carr( 4,m) = bb%NO2(       i,j,k)
+         xx_carr( 5,m) = bb%O3(        i,j,k)
+         xx_carr( 6,m) = bb%CH4(       i,j,k)
+         xx_carr( 7,m) = bb%CO(        i,j,k)
+         xx_carr( 8,m) = bb%ISOP(      i,j,k)
+         xx_carr( 9,m) = bb%ACET(      i,j,k)
+         xx_carr(10,m) = bb%C2H6(      i,j,k)
+         xx_carr(11,m) = bb%C3H8(      i,j,k)
+         xx_carr(12,m) = bb%PRPE(      i,j,k)
+         xx_carr(13,m) = bb%ALK4(      i,j,k)
+         xx_carr(14,m) = bb%MP(        i,j,k)
+         xx_carr(15,m) = bb%H2O2(      i,j,k)
+         xx_carr(16,m) = bb%TAUCLWDN(  i,j,k)
+         xx_carr(17,m) = bb%TAUCLIDN(  i,j,k)
+         xx_carr(18,m) = bb%TAUCLIUP(  i,j,k)
+         xx_carr(19,m) = bb%TAUCLWUP(  i,j,k)
+         xx_carr(20,m) = bb%CLOUD(     i,j,k)
+         xx_carr(21,m) = bb%QV(        i,j,k)
+         xx_carr(22,m) = bb%GMISTRATO3(i,j  )          ! 2D
+         xx_carr(23,m) = bb%ALBUV(     i,j  )          ! 2D
+         xx_carr(24,m) = bb%AODUP(     i,j,k)
+         xx_carr(25,m) = bb%AODDN(     i,j,k)
+         xx_carr(26,m) = bb%CH2O(      i,j,k)
+         xx_carr(27,m) = bb%SZA(       i,j  )          ! 2D
+
+         m = m + 1
+
+       END DO
+       END DO
+       END DO
+
+       rc = XGDMatrixCreateFromMat_f(xx_carr, xx_prediction_count, xx_param_count, xx_miss, xx_dmtrx)
+!      if(rc /= 0) then
+!       DO m=1,xx_param_count
+!         print*,'  Failing - xx_carr ', m, xx_carr(:,m)   REVISE THIS TO PRINT LESS
+!       end do
+!      endif
+       _ASSERT(rc==0,'Failed in XGDMatrixCreateFromMat_f')
+
+       ! Make prediction. The result will be stored in c pointer xx_cpred 
+       rc = XGBoosterPredict_f(xx_bst,xx_dmtrx,xx_option_mask,xx_ntree_limit,xx_training,xx_pred_len,xx_cpred)
+       !if (mapl_am_i_root()) print*,'BOOST PREDICTION LENGTH:',xx_pred_len   --->  72 when doing single columns
+       _ASSERT(rc==0,'Failed in XGBoosterPredict_f')
+       _ASSERT(xx_pred_len==xx_prediction_count,'Wrong value returned for xx_pred_len')
+
+       ! Link to fortran pointer xx_pred 
+       call c_f_pointer(xx_cpred, xx_pred, [xx_pred_len])
+
+       m=1
+       DO k=k1,k2
+       DO j= 1,jcount
+       DO i= 1,icount
+
+         OH_ML(i,j,k) = 10.0 ** (xx_pred(m))   ! yields mol/mol
+         m = m + 1
+
+       END DO
+       END DO
+       END DO
+
+
+       rc = XGDMatrixFree_f(xx_dmtrx)
+       _ASSERT(rc==0,'Failed in XGDMatrixFree_f')
+
+
+       if (associated(xx_pred) ) nullify(xx_pred)
+
+       if (allocated (xx_carr) ) deallocate(xx_carr)
+
+!!!!!!!!!!!!!!!!!!!!!!!!!   FINAL
 
 !--- Cleanup
-      rc = XGBoosterFree_f(xx_bst)
-      if(rc /= 0) write(*,*) __FILE__,__LINE__,'Failed in XGBoosterFree_f, Return code: ',rc
-      VERIFY_(rc)
-      if (allocated (xx_carr) ) deallocate(xx_carr)
-      if (associated(xx_pred) ) nullify(xx_pred)
-      if(debug) write(*,*) 'All done'
+
+!!     Only free at the end of the program
+!      rc = XGBoosterFree_f(xx_bst)
+!      if(rc /= 0) write(*,*) __FILE__,__LINE__,'Failed in XGBoosterFree_f, Return code: ',rc
+!      VERIFY_(rc)
+
+      if(debug) write(*,*) 'Finished predict_OH_with_XGB'
 
       RETURN_(ESMF_SUCCESS)
 
@@ -507,6 +555,8 @@ contains
       IF (mapl_am_i_root()) PRINT*,'OH_data source for ONLINE fields: '//TRIM(token)
     ENDIF
 
+    call ESMF_ConfigGetAttribute(cfg, self%compute_once_per_day,   label='compute_once_per_day:',   __RC__)
+
     call ESMF_ConfigGetAttribute(cfg, self%spinup_24hr_imports,    label='spinup_24hr_imports:',    __RC__)
 
     call ESMF_ConfigGetAttribute(cfg, self%wavelength_for_scacoef, label='wavelength_for_scacoef:', __RC__)
@@ -520,9 +570,9 @@ contains
     g2g_cfg = ESMF_ConfigCreate (__RC__)
     call ESMF_ConfigLoadFile (g2g_cfg, 'GOCART2G_GridComp.rc', __RC__)
 
-    self%n_wavelengths_profile = ESMF_ConfigGetLen (g2g_cfg, label='wavelengths_for_profile_aop_in_nm:', __RC__)
+    self%n_wavelengths_profile = ESMF_ConfigGetLen (g2g_cfg,    label='wavelengths_for_profile_aop_in_nm:', __RC__)
 
-    allocate(wavelengths_profile(self%n_wavelengths_profile), __STAT__)
+    allocate(wavelengths_profile(   self%n_wavelengths_profile), __STAT__)
 
     call ESMF_ConfigGetAttribute (g2g_cfg, wavelengths_profile, label='wavelengths_for_profile_aop_in_nm:', __RC__)
 
@@ -544,10 +594,11 @@ contains
 !   Set entry points
 !   ------------------------
     call MAPL_GridCompSetEntryPoint (GC, ESMF_Method_Initialize,  Initialize, __RC__)
-    call MAPL_GridCompSetEntryPoint (GC, ESMF_Method_Run, Run, __RC__)
+    call MAPL_GridCompSetEntryPoint (GC, ESMF_Method_Run,         Run,        __RC__)
     if (data_driven .neqv. .true.) then
        call MAPL_GridCompSetEntryPoint (GC, ESMF_Method_Run, Run2, __RC__)
     end if
+!   call MAPL_GridCompSetEntryPoint (GC, ESMF_Method_Finalize,    Finalize,   __RC__)
 
 
 !   IMPORT STATE
@@ -831,6 +882,8 @@ contains
         call ESMF_ConfigLoadFile (cfg, 'OH_instance_OH.rc', __RC__)
     end if
 
+    allocate( self%OH_ML(1:dims(1),1:dims(2),1:dims(3)), __STAT__ )
+
 !   Call Generic Initialize 
 !   ------------------------
     call MAPL_GenericInitialize (GC, import, export, clock, __RC__)
@@ -977,16 +1030,6 @@ contains
 
     integer  :: nymd, nhms, iyr, imm, idd, ihr, imn, isc
     integer  :: import_shape_3d(3), im, jm, km
-!   integer  :: du_shape(4)
-!    real, dimension(:,:), pointer     :: emissions_surface
-!    real, dimension(:,:,:), allocatable     :: emissions_surface
-!    real, dimension(:,:,:,:), allocatable :: emissions
-!    real, dimension(:,:,:), allocatable   :: emissions_point
-!    character (len=ESMF_MAXSTR)  :: fname ! file name for point source emissions
-!    integer, pointer, dimension(:)  :: iPoint, jPoint
-!    logical :: fileExists
-    integer :: n, ijl
-
 
 !  Input fields from fvGCM
 !  -----------------------
@@ -1026,12 +1069,14 @@ contains
       REAL, POINTER, DIMENSION(:,:)   ::  ptr2d    => null()
       REAL, POINTER, DIMENSION(:,:,:) ::  ptr3d    => null()
 
+      REAL, POINTER, DIMENSION(:,:,:) ::  default_OH    => null()
+
       REAL, POINTER, DIMENSION(:,:,:) ::  Q_MOD    => null()   ! top-down  - current value in the model
       REAL, POINTER, DIMENSION(:,:,:) ::  T_MOD    => null()   ! top-down  - current value in the model
 
       REAL, ALLOCATABLE         ::    TV_MOD(:,:,:) ! top-down  - current value in the model
       REAL, ALLOCATABLE         :: NDWET_MOD(:,:,:) ! top-down  - current value in the model
-      REAL, ALLOCATABLE         ::    PL_MOD(:,:,:) ! top-down   ! Pa  - vcurrent value in the model
+      REAL, ALLOCATABLE         ::    PL_MOD(:,:,:) ! top-down   ! Pa  - current value in the model
       REAL, ALLOCATABLE, TARGET ::    PL_BST(:,:,:) ! top-down   ! Pa  - value for XGBoost
 
       REAL, ALLOCATABLE, TARGET :: tauclwDN(:,:,:) ! top-down
@@ -1048,15 +1093,19 @@ contains
       REAL, ALLOCATABLE, TARGET ::   aodDN(:,:,:) ! top-down  Aero Optical Depth below
       REAL, ALLOCATABLE         ::     aod(:,:,:) ! top-down  (intermediate term)
 
-      REAL, ALLOCATABLE         ::   OH_ML(:,:,:) ! top-down  (gather the answer in this)
-
       REAL, POINTER, DIMENSION(:,:)     :: LATS
       REAL, POINTER, DIMENSION(:,:)     :: LONS
 
       REAL*8,  ALLOCATABLE :: gridBoxThickness(:,:,:) !                       top-down
 
+      LOGICAL :: dynamic_k_range  ! whether the prediction routine should limit work to the troposphere
+
+      LOGICAL :: need_to_call_BOOST
+
+      REAL    :: tropp_min
+
       INTEGER :: i1, i2, j1, j2
-      INTEGER :: i, k
+      INTEGER :: i, j, k
 
       INTEGER :: JDAY
 !     REAL    :: radToDeg, degToRad, pi
@@ -1069,6 +1118,9 @@ contains
 
       TYPE(OH_BOOST_INPUT_DATA)       :: bb
       CHARACTER(LEN=ESMF_MAXPATHLEN)  :: XGBoostFilename
+
+      TYPE(ESMF_Alarm)  :: ALARM
+      LOGICAL :: RunRightNow
 
 
 #include "OH_DeclarePointer___.h"
@@ -1106,7 +1158,29 @@ contains
     call MAPL_PackTime (nymd, iyr, imm , idd)
     call MAPL_PackTime (nhms, ihr, imn, isc)
 
+
+!   NOTES on OH_DT
+!   *  If OH_DT is not set, the alarm will ring at every timestep
+!   *  OH_DT will not save much time if you are using compute_once_per_day
+!   *  Set OH_REFERENCE_TIME to be the HEARTBEAT, to make sure this routine runs at
+!      the BEGINNING of each OH_DT interval, e.g. in AGCM.rc:   OH_REFERENCE_TIME: 000730
+!      otherwise the alarm will ring during the LAST timestep of each OH_DT interval
+!   *  We silence the alarm at the end of Run2
+!   ----------------------------------------------------------------------------------------
+    CALL MAPL_Get(mapl, RUNALARM=ALARM, __RC__)
+    RunRightNow = ESMF_AlarmIsRinging(ALARM, __RC__)
+!   if (mapl_am_i_root()) PRINT*,'OH HMS1, alarm:',nhms,RunRightNow
+    IF ( .NOT. RunRightNow ) THEN
+      RETURN_(ESMF_SUCCESS)
+    END IF
+
     call fill_grads_template(XGBoostFilename,self%XGBoostFilePattern,nymd=nymd,nhms=nhms,__RC__)
+
+    IF ( self%compute_once_per_day .AND. nhms > 0 ) THEN
+      need_to_call_BOOST = .FALSE.
+    ELSE
+      need_to_call_BOOST = .TRUE.
+    END IF
 
 #include "OH_GetPointer___.h"
 
@@ -1116,7 +1190,6 @@ contains
     im = import_shape_3d(1)
     jm = import_shape_3d(2)
     km = import_shape_3d(3)
-    ijl  = im * jm
 
 !   Call the ML predictor:
 
@@ -1139,8 +1212,6 @@ contains
 
 !     radToDeg = 57.2957795
 
-!     IF(MAPL_AM_I_ROOT()) PRINT *,"OH in QC: begin...."
-
       !  Initialize local variables
       !  --------------------------
       i1 = 1
@@ -1148,6 +1219,34 @@ contains
       j1 = 1
       j2 = jm
 
+! Get the current model values:
+      CALL MAPL_GetPointer(import,     T_MOD,     'T',  __RC__ )
+      CALL MAPL_GetPointer(import,     Q_MOD,     'Q',  __RC__ )
+      CALL MAPL_GetPointer(import,   PLE_MOD,   'PLE',  __RC__ )
+      CALL MAPL_GetPointer(import, TROPP_MOD, 'TROPP',  __RC__ )
+
+!  !  Compute some MOD fields -- current values from MODEL:
+
+      allocate(    PL_MOD(i1:i2,j1:j2,1:km), __STAT__ )
+      allocate(    TV_MOD(i1:i2,j1:j2,1:km), __STAT__ )
+      allocate( NDWET_MOD(i1:i2,j1:j2,1:km), __STAT__ )
+
+!  !  Layer mean pressures  (Pa)
+!  !  --------------------
+      _ASSERT(lbound(PLE_MOD,3)==0, "Error. Expecting PLE starting index 0")
+      PL_MOD = (PLE_MOD(:,:,0:km-1)+PLE_MOD(:,:,1:km))*0.5
+
+   !  Virtual Temperature (K)
+      TV_MOD = T_MOD * (1.0 + Q_MOD/MAPL_EPSILON)/(1.0 + Q_MOD)
+
+   !  Moist air number density  (molec/m3)
+   !  NOTE: Odd units for MAPL_AVOGAD = molec / kmol   (usually expressed in terms of mol)
+   !  NOTE: Odd units for MAPL_RUNIV  = J / (kmol K)   (usually expressed in terms of mol)
+   !  Use online, instantaneous values to compute
+   !  ------------------------
+      NDWET_MOD = (MAPL_AVOGAD * PL_MOD) / (MAPL_RUNIV * TV_MOD)
+
+  PREP_FOR_BOOST: IF ( need_to_call_BOOST ) THEN
       !  Initialize the BOOST pointers
       !  -----------------------------
       NULLIFY( bb%LAT        )   ! online
@@ -1180,16 +1279,12 @@ contains
 
       ! Reserve Some local work space
       !------------------------------
-      allocate(gridBoxThickness(i1:i2,j1:j2,1:km), __STAT__ )
-      allocate(       NDWET_MOD(i1:i2,j1:j2,1:km), __STAT__ )
-      allocate(          TV_MOD(i1:i2,j1:j2,1:km), __STAT__ )
-
       allocate(          latarr(i1:i2,j1:j2),      __STAT__ )
       allocate(         stratO3(i1:i2,j1:j2),      __STAT__ )
       allocate(        sza_noon(i1:i2,j1:j2),      __STAT__ )
 
+      allocate(gridBoxThickness(i1:i2,j1:j2,1:km), __STAT__ )
       allocate(          PL_BST(i1:i2,j1:j2,1:km), __STAT__ )
-      allocate(          PL_MOD(i1:i2,j1:j2,1:km), __STAT__ )
       allocate(        tauclwDN(i1:i2,j1:j2,1:km), __STAT__ )
       allocate(        taucliDN(i1:i2,j1:j2,1:km), __STAT__ )
       allocate(        taucliUP(i1:i2,j1:j2,1:km), __STAT__ )
@@ -1197,8 +1292,6 @@ contains
       allocate(             aod(i1:i2,j1:j2,1:km), __STAT__ )
       allocate(           aodUP(i1:i2,j1:j2,1:km), __STAT__ )
       allocate(           aodDN(i1:i2,j1:j2,1:km), __STAT__ )
-      allocate(           OH_ML(i1:i2,j1:j2,1:km), __STAT__ )
-
 
       !Get imports
 
@@ -1213,13 +1306,11 @@ contains
         if ( ptr3d(1,1,1) == 0.0 ) self%use_inst_values = .TRUE.
       endif
 
-  if (mapl_am_i_root()) then
-   if (       self%use_inst_values ) PRINT*,'OH is in the SPINUP period for 24-hour averages'
-   if ( .NOT. self%use_inst_values ) PRINT*,'OH is *NOT* in the SPINUP period for 24-hour averages'
-  endif
+      if (mapl_am_i_root()) then
+       if (       self%use_inst_values ) PRINT*,'OH is in the SPINUP period for 24-hour averages'
+       if ( .NOT. self%use_inst_values ) PRINT*,'OH is *NOT* in the SPINUP period for 24-hour averages'
+      endif
 
-! Get the current model value:
-                                                 CALL MAPL_GetPointer(import, T_MOD,      'T',           __RC__ )
 ! Get the value to use when calling XGBoost:
 ! (save directly into bb)
       if ( self%OH_data_source == PRECOMPUTED  ) CALL MAPL_GetPointer(import, bb%T,    'oh_T',           __RC__ )
@@ -1232,8 +1323,6 @@ contains
 ! CALL MAPL_GetPointer(export, ptr3d, 'DIAG_T_in_OH',    __RC__)
 ! IF (ASSOCIATED(ptr3d))   ptr3d(:,:,:) = bb%T
 
-! Get the current model value:
-                                                 CALL MAPL_GetPointer(import, Q_MOD,      'Q',           __RC__ )
 ! Get the value to use when calling XGBoost:
 ! (save directly into bb)
       if ( self%OH_data_source == PRECOMPUTED  ) CALL MAPL_GetPointer(import, bb%QV,   'oh_Q',           __RC__ )
@@ -1243,8 +1332,6 @@ contains
          if ( .NOT. self%use_inst_values )       CALL MAPL_GetPointer(import, bb%QV,      'Q_avg24',     __RC__ )
       endif
 
-! Get the current model value:
-                                                 CALL MAPL_GetPointer(import, PLE_MOD,    'PLE',         __RC__ )
 ! Get the value to use when calling XGBoost:
       if ( self%OH_data_source == PRECOMPUTED  ) CALL MAPL_GetPointer(import, PLE_BST, 'oh_PLE',         __RC__ )
       if ( self%OH_data_source == ONLINE_INST  ) CALL MAPL_GetPointer(import, PLE_BST,    'PLE',         __RC__ )
@@ -1286,7 +1373,7 @@ contains
 !     CALL MAPL_Get( genState, INTERNAL_ESMF_STATE=INTERNAL, __RC__ )
 
 
-!     Note that the archived fields are 3D, while the online fields are 4D:
+!     Note that the archived Scattering Coefficient fields are 3D, while the online fields are 4D:
 
       if ( self%OH_data_source == PRECOMPUTED  ) CALL MAPL_GetPointer(import, BCscacoef_3D,  'oh_BCSCACOEF',       __RC__ )
       if ( self%OH_data_source == ONLINE_INST  ) CALL MAPL_GetPointer(import, BCscacoef_4D,     'BCSCACOEF',       __RC__ )
@@ -1340,21 +1427,6 @@ contains
 
       stratO3(:,:) = gmito3(:,:) - gmitto3(:,:)
 
-!  !  Layer mean pressures  (Pa)
-!  !  --------------------
-      _ASSERT(lbound(PLE_MOD,3)==0, "Error. Expecting PLE starting index 0")
-      PL_MOD = (PLE_MOD(:,:,0:km-1)+PLE_MOD(:,:,1:km))*0.5
-
-   !  Virtual Temperature (K)
-      TV_MOD = T_MOD * (1.0 + Q_MOD/MAPL_EPSILON)/(1.0 + Q_MOD)
-
-   !  Moist air number density  (molec/m3)
-   !  NOTE: Odd units for MAPL_AVOGAD = molec / kmol   (usually expressed in terms of mol)
-   !  NOTE: Odd units for MAPL_RUNIV  = J / (kmol K)   (usually expressed in terms of mol)
-   !  Use online, instantaneous values to compute
-   !  ------------------------
-      NDWET_MOD = (MAPL_AVOGAD * PL_MOD) / (MAPL_RUNIV * TV_MOD)
-
    !  Cell depth (in meters)
    !  ---------------------
       _ASSERT(lbound(ZLE_BST,3)==0, "Error. Expecting ZLE starting index 0")
@@ -1389,6 +1461,8 @@ contains
       ! Compute SZA
       JDAY     = JulianDay(nymd)
       sza_noon = computeSolarZenithAngle_LocalNoon (JDAY, LATS, LONS, i1, i2, j1, j2)
+
+!!! Assign values to all the input parameters held in bb:
 
         bb%LAT => latarr
 
@@ -1437,114 +1511,135 @@ contains
 
 !       bb%QV  set above
 
-        bb%GMISTRATO3 => stratO3   ! 2D  derived from M2G  11.18
+        bb%GMISTRATO3 => stratO3   ! 2D  derived from M2G
 
-        CALL MAPL_GetPointer(import, bb%ALBUV,         'oh_ALBUV', __RC__ )   ! single layer from climo (ExtData) 11.23
+        CALL MAPL_GetPointer(import, bb%ALBUV,         'oh_ALBUV', __RC__ )   ! single layer from climo (ExtData)
 
-        bb%AODUP  =>  aodUP  ! top-down  11.19 offline, 11.22 online
-        bb%AODDN  =>  aodDN  ! top-down  11.19 offline, 11.22 online
+        bb%AODUP  =>  aodUP
+        bb%AODDN  =>  aodDN
 
         CALL MAPL_GetPointer(import, bb%CH2O,           'oh_CH2O', __RC__ )
 
-        bb%SZA    =>  sza_noon   ! 11.24
+        bb%SZA    =>  sza_noon
+
+  END IF PREP_FOR_BOOST
+
 
         ! default OH values; prediction will only be done in the troposphere
-        CALL MAPL_GetPointer(import, ptr3d,             'oh_OH',   __RC__ )
-        OH_ML(:,:,:) = ptr3d(:,:,:)
+        CALL MAPL_GetPointer(import, default_OH,        'oh_OH',   __RC__ )
+
+        CALL MAPL_MaxMin ( 'OH: OH From M2G ', default_OH )
 
 !       ! capture MERRA2GMI version as diagnostic:
         CALL MAPL_GetPointer(export, ptr3d,     'DIAG_OH_M2G',     __RC__)
-        IF (ASSOCIATED(ptr3d))   ptr3d(:,:,:) = OH_ML(:,:,:)
+        IF (ASSOCIATED(ptr3d))   ptr3d(:,:,:) = default_OH(:,:,:)
 
-!       ! set OH to zero for debugging purposes:
-!       OH_ML(:,:,:) = 0.0
 
-        CALL MAPL_MaxMin ( 'OH: OH From M2G ', OH_ML )
+  CALL_BOOST: IF ( need_to_call_BOOST ) THEN
 
-        CALL MAPL_GetPointer(import, TROPP_MOD, 'TROPP',  __RC__ )
+        self%OH_ML(:,:,:) = 0.0
 
-        CALL predict_OH_with_XGB( XGBoostFilename, (i2-i1)+1,  (j2-j1)+1, km, PL_MOD, TROPP_MOD, bb, OH_ML, __RC__ )
+        dynamic_k_range = .NOT.  self%compute_once_per_day
+
+        tropp_min = 40.0 * 100  ! convert hPa to Pa
+
+        CALL predict_OH_with_XGB( XGBoostFilename, im, jm, km, dynamic_k_range, tropp_min, &
+                                  PL_MOD, TROPP_MOD, bb, self%OH_ML, __RC__ )
 
         CALL MAPL_GetPointer(export, ptr3d,     'OH_boost',     __RC__)
-        IF (ASSOCIATED(ptr3d))   ptr3d(:,:,:) = OH_ML(:,:,:)
+        IF (ASSOCIATED(ptr3d))   ptr3d(:,:,:) = self%OH_ML(:,:,:)
 
-!! debug - did BOOST introduce differences in the stratosphere?
-!IF (ASSOCIATED(ptr3d))   THEN
-!  CALL MAPL_MaxMin ( 'MINMAX of TOP 25 levels of OH difference: ', OH_ML(:,:,1:25)-ptr3d(:,:,1:25)  )
-!ENDIF
+  END IF CALL_BOOST
+
+
+!       Only use Boost values in the troposphere
+!       Note: we test using online values that change every timestep
+        DO j= 1,jm
+        DO i= 1,im
+          WHERE ( PL_MOD(i,j,:) .GT. TROPP_MOD(i,j) )       ! Note the same comparison at @@@
+            OH(i,j,:) = self%OH_ML(i,j,:)
+          ELSEWHERE
+            OH(i,j,:) = default_OH(i,j,:)
+          END WHERE
+        END DO
+        END DO
 
 !!
 !!  March 2022:  Store the XGBoost version of OH in data3d; convert from mol/mol to molec/cm3
 !!               This makes it available to CO and CH4
 !!
       !   [mol_OH/mol_MoistAir] * nd_moist_air[molec_MoistAir/m3] = [molec_OH/m3]
-      !   / 1.0e+6 = molec_OH/cm3
-      OH = (OH_ML * NDWET_MOD) * 1.0e-6
+      !   * 1.0e-6 = molec_OH/cm3
+      OH = (OH * NDWET_MOD) * 1.0e-6
 
 ! debug - DIAG for moist air number density
-CALL MAPL_GetPointer(export, ptr3d,     'DIAG_NDWET',     __RC__)
-IF (ASSOCIATED(ptr3d))   ptr3d(:,:,:) = NDWET_MOD(:,:,:)
+      CALL MAPL_GetPointer(export, ptr3d,   'DIAG_NDWET',          __RC__)
+      IF (ASSOCIATED(ptr3d))       ptr3d(:,:,:) = NDWET_MOD(:,:,:)
 
-      ! Diagnostics for debugging
 
-      CALL MAPL_GetPointer(export, ptr2d, 'DIAG_LAT',         __RC__)
-      IF (ASSOCIATED(ptr2d))   ptr2d(:,:)   = bb%LAT
+! Handle diagnostic and deallocation:
+  AFTER_BOOST: IF ( need_to_call_BOOST ) THEN
+
+      ! Diagnostics that are only meaningful when we call BOOST:
+
+      CALL MAPL_GetPointer(export, ptr2d,      'DIAG_LAT',         __RC__)
+      IF (ASSOCIATED(ptr2d))       ptr2d(:,:)   = bb%LAT
 
 ! IF ( self%OH_data_source == ONLINE_AVG24 ) THEN
 !     CALL MAPL_GetPointer(export, ptr3d,   'DIAG_T_avg24',    __RC__)
 !     IF (ASSOCIATED(ptr3d))  CALL MAPL_GetPointer(import, ptr3d, 'T_avg24', __RC__ )
 ! ENDIF
 
-      CALL MAPL_GetPointer(export, ptr3d, 'DIAG_TAUCLWDN',    __RC__)
-      IF (ASSOCIATED(ptr3d))   ptr3d(:,:,:) = bb%TAUCLWDN
+      CALL MAPL_GetPointer(export, ptr3d,      'DIAG_TAUCLWDN',    __RC__)
+      IF (ASSOCIATED(ptr3d))       ptr3d(:,:,:) = bb%TAUCLWDN
 
-      CALL MAPL_GetPointer(export, ptr3d, 'DIAG_TAUCLIDN',    __RC__)
-      IF (ASSOCIATED(ptr3d))   ptr3d(:,:,:) = bb%TAUCLIDN
+      CALL MAPL_GetPointer(export, ptr3d,      'DIAG_TAUCLIDN',    __RC__)
+      IF (ASSOCIATED(ptr3d))       ptr3d(:,:,:) = bb%TAUCLIDN
 
-      CALL MAPL_GetPointer(export, ptr3d, 'DIAG_TAUCLIUP',    __RC__)
-      IF (ASSOCIATED(ptr3d))   ptr3d(:,:,:) = bb%TAUCLIUP
+      CALL MAPL_GetPointer(export, ptr3d,      'DIAG_TAUCLIUP',    __RC__)
+      IF (ASSOCIATED(ptr3d))       ptr3d(:,:,:) = bb%TAUCLIUP
 
-      CALL MAPL_GetPointer(export, ptr3d, 'DIAG_TAUCLWUP',    __RC__)
-      IF (ASSOCIATED(ptr3d))   ptr3d(:,:,:) = bb%TAUCLWUP
+      CALL MAPL_GetPointer(export, ptr3d,      'DIAG_TAUCLWUP',    __RC__)
+      IF (ASSOCIATED(ptr3d))       ptr3d(:,:,:) = bb%TAUCLWUP
 
-      CALL MAPL_GetPointer(export, ptr2d, 'DIAG_GMISTRATO3',  __RC__)
-      IF (ASSOCIATED(ptr2d))   ptr2d(:,:)   = bb%GMISTRATO3
+      CALL MAPL_GetPointer(export, ptr2d,      'DIAG_GMISTRATO3',  __RC__)
+      IF (ASSOCIATED(ptr2d))       ptr2d(:,:)   = bb%GMISTRATO3
 
-      CALL MAPL_GetPointer(export, ptr2d, 'DIAG_ALBUV',       __RC__)
-      IF (ASSOCIATED(ptr2d))   ptr2d(:,:)   = bb%ALBUV
+      CALL MAPL_GetPointer(export, ptr2d,      'DIAG_ALBUV',       __RC__)
+      IF (ASSOCIATED(ptr2d))       ptr2d(:,:)   = bb%ALBUV
 
-      CALL MAPL_GetPointer(export, ptr3d, 'DIAG_AODUP',       __RC__)
-      IF (ASSOCIATED(ptr3d))   ptr3d(:,:,:) = bb%AODUP
+      CALL MAPL_GetPointer(export, ptr3d,      'DIAG_AODUP',       __RC__)
+      IF (ASSOCIATED(ptr3d))       ptr3d(:,:,:) = bb%AODUP
 
-      CALL MAPL_GetPointer(export, ptr3d, 'DIAG_AODDN',       __RC__)
-      IF (ASSOCIATED(ptr3d))   ptr3d(:,:,:) = bb%AODDN
+      CALL MAPL_GetPointer(export, ptr3d,      'DIAG_AODDN',       __RC__)
+      IF (ASSOCIATED(ptr3d))       ptr3d(:,:,:) = bb%AODDN
 
-      CALL MAPL_GetPointer(export, ptr2d, 'DIAG_SZA',         __RC__)
-      IF (ASSOCIATED(ptr2d))   ptr2d(:,:)   = bb%SZA
+      CALL MAPL_GetPointer(export, ptr2d,      'DIAG_SZA',         __RC__)
+      IF (ASSOCIATED(ptr2d))       ptr2d(:,:)   = bb%SZA
 
-      CALL MAPL_GetPointer(export, ptr3d, 'DIAG_PL',       __RC__)
-      IF (ASSOCIATED(ptr3d))   ptr3d(:,:,:) = bb%PL
+      CALL MAPL_GetPointer(export, ptr3d,      'DIAG_PL',          __RC__)
+      IF (ASSOCIATED(ptr3d))       ptr3d(:,:,:) = bb%PL
 
-      CALL MAPL_GetPointer(export, ptr3d, 'DIAG_T',       __RC__)
-      IF (ASSOCIATED(ptr3d))   ptr3d(:,:,:) = bb%T
+      CALL MAPL_GetPointer(export, ptr3d,      'DIAG_T',           __RC__)
+      IF (ASSOCIATED(ptr3d))       ptr3d(:,:,:) = bb%T
 
-      CALL MAPL_GetPointer(export, ptr3d, 'DIAG_CH4',       __RC__)
-      IF (ASSOCIATED(ptr3d))   ptr3d(:,:,:) = bb%CH4
+      CALL MAPL_GetPointer(export, ptr3d,      'DIAG_CH4',         __RC__)
+      IF (ASSOCIATED(ptr3d))       ptr3d(:,:,:) = bb%CH4
 
-      CALL MAPL_GetPointer(export, ptr3d, 'DIAG_CO',       __RC__)
-      IF (ASSOCIATED(ptr3d))   ptr3d(:,:,:) = bb%CO
+      CALL MAPL_GetPointer(export, ptr3d,      'DIAG_CO',          __RC__)
+      IF (ASSOCIATED(ptr3d))       ptr3d(:,:,:) = bb%CO
 
-      CALL MAPL_GetPointer(export, ptr3d, 'DIAG_CLOUD',       __RC__)
-      IF (ASSOCIATED(ptr3d))   ptr3d(:,:,:) = bb%CLOUD
+      CALL MAPL_GetPointer(export, ptr3d,      'DIAG_CLOUD',       __RC__)
+      IF (ASSOCIATED(ptr3d))       ptr3d(:,:,:) = bb%CLOUD
 
-      CALL MAPL_GetPointer(export, ptr3d, 'DIAG_QV',       __RC__)
-      IF (ASSOCIATED(ptr3d))   ptr3d(:,:,:) = bb%QV
+      CALL MAPL_GetPointer(export, ptr3d,      'DIAG_QV',          __RC__)
+      IF (ASSOCIATED(ptr3d))       ptr3d(:,:,:) = bb%QV
 
-      CALL MAPL_GetPointer(export, ptr3d, 'DIAG_ZLE',       __RC__)
-      IF (ASSOCIATED(ptr3d))   ptr3d(:,:,:) = ZLE_BST
+      CALL MAPL_GetPointer(export, ptr3d,   'DIAG_ZLE',            __RC__)
+      IF (ASSOCIATED(ptr3d))       ptr3d(:,:,:) = ZLE_BST
 
-      CALL MAPL_GetPointer(export, ptr3d, 'DIAG_AOD',       __RC__)
-      IF (ASSOCIATED(ptr3d))   ptr3d(:,:,:) = AOD
+      CALL MAPL_GetPointer(export, ptr3d,   'DIAG_AOD',            __RC__)
+      IF (ASSOCIATED(ptr3d))       ptr3d(:,:,:) = AOD
 
 
       CALL MAPL_GetPointer(export, ptr3d, 'DIAG_SC_BC',       __RC__)
@@ -1552,8 +1647,7 @@ IF (ASSOCIATED(ptr3d))   ptr3d(:,:,:) = NDWET_MOD(:,:,:)
         IF ( self%OH_data_source == PRECOMPUTED ) THEN
           ptr3d(:,:,:) =     BCscacoef_3D
         ELSE
-          ptr3d(:,:,:) = SUM(BCscacoef_4D,4)
-          ptr3d(:,:,:) =     BCscacoef_4D(:,:,:,1)
+          ptr3d(:,:,:) =     BCscacoef_4D(:,:,:,self%wavelength_index)
         ENDIF
       ENDIF
       CALL MAPL_GetPointer(export, ptr3d, 'DIAG_SC_OC',       __RC__)
@@ -1561,8 +1655,7 @@ IF (ASSOCIATED(ptr3d))   ptr3d(:,:,:) = NDWET_MOD(:,:,:)
         IF ( self%OH_data_source == PRECOMPUTED ) THEN
           ptr3d(:,:,:) =     OCscacoef_3D
         ELSE
-          ptr3d(:,:,:) = SUM(OCscacoef_4D,4)
-          ptr3d(:,:,:) =     OCscacoef_4D(:,:,:,1)
+          ptr3d(:,:,:) =     OCscacoef_4D(:,:,:,self%wavelength_index)
         ENDIF
       ENDIF
       CALL MAPL_GetPointer(export, ptr3d, 'DIAG_SC_DU',       __RC__)
@@ -1570,8 +1663,7 @@ IF (ASSOCIATED(ptr3d))   ptr3d(:,:,:) = NDWET_MOD(:,:,:)
         IF ( self%OH_data_source == PRECOMPUTED ) THEN
           ptr3d(:,:,:) =     DUscacoef_3D
         ELSE
-          ptr3d(:,:,:) = SUM(DUscacoef_4D,4)
-          ptr3d(:,:,:) =     DUscacoef_4D(:,:,:,1)
+          ptr3d(:,:,:) =     DUscacoef_4D(:,:,:,self%wavelength_index)
         ENDIF
       ENDIF
       CALL MAPL_GetPointer(export, ptr3d, 'DIAG_SC_SU',       __RC__)
@@ -1579,8 +1671,7 @@ IF (ASSOCIATED(ptr3d))   ptr3d(:,:,:) = NDWET_MOD(:,:,:)
         IF ( self%OH_data_source == PRECOMPUTED ) THEN
           ptr3d(:,:,:) =     SUscacoef_3D
         ELSE
-          ptr3d(:,:,:) = SUM(SUscacoef_4D,4)
-          ptr3d(:,:,:) =     SUscacoef_4D(:,:,:,1)
+          ptr3d(:,:,:) =     SUscacoef_4D(:,:,:,self%wavelength_index)
         ENDIF
       ENDIF
       CALL MAPL_GetPointer(export, ptr3d, 'DIAG_SC_SS',       __RC__)
@@ -1588,8 +1679,7 @@ IF (ASSOCIATED(ptr3d))   ptr3d(:,:,:) = NDWET_MOD(:,:,:)
         IF ( self%OH_data_source == PRECOMPUTED ) THEN
           ptr3d(:,:,:) =     SSscacoef_3D
         ELSE
-          ptr3d(:,:,:) = SUM(SSscacoef_4D,4)
-          ptr3d(:,:,:) =     SSscacoef_4D(:,:,:,1)
+          ptr3d(:,:,:) =     SSscacoef_4D(:,:,:,self%wavelength_index)
         ENDIF
       ENDIF
       CALL MAPL_GetPointer(export, ptr3d, 'DIAG_SC_NI',       __RC__)
@@ -1597,15 +1687,18 @@ IF (ASSOCIATED(ptr3d))   ptr3d(:,:,:) = NDWET_MOD(:,:,:)
         IF ( self%OH_data_source == PRECOMPUTED ) THEN
           ptr3d(:,:,:) =     NIscacoef_3D
         ELSE
-          ptr3d(:,:,:) = SUM(NIscacoef_4D,4)
-          ptr3d(:,:,:) =     NIscacoef_4D(:,:,:,1)
+          ptr3d(:,:,:) =     NIscacoef_4D(:,:,:,self%wavelength_index)
         ENDIF
       ENDIF
 
 
-      DEALLOCATE(gridBoxThickness, PL_BST, PL_MOD, latarr, stratO3, sza_noon,   &
-                 tauclwDN, taucliDN, taucliUP, tauclwUP, NDWET_MOD, &
-                 TV_MOD, aod, aodUP, aodDN, OH_ML, __STAT__ )
+      DEALLOCATE(gridBoxThickness, PL_BST, latarr, stratO3, sza_noon,   &
+                 tauclwDN, taucliDN, taucliUP, tauclwUP, &
+                 aod, aodUP, aodDN, __STAT__ )
+
+  END IF AFTER_BOOST
+
+      DEALLOCATE( PL_MOD, TV_MOD, NDWET_MOD, __STAT__ )
 
     RETURN_(ESMF_SUCCESS)
 
@@ -1639,6 +1732,11 @@ IF (ASSOCIATED(ptr3d))   ptr3d(:,:,:) = NDWET_MOD(:,:,:)
 
 ! #include "OH_DeclarePointer___.h"
 
+    type(ESMF_Time)   :: time
+    integer  :: nymd, nhms, iyr, imm, idd, ihr, imn, isc
+    TYPE(ESMF_Alarm)  :: ALARM
+    LOGICAL :: RunRightNow
+
     __Iam__('Run2')
 
 !*****************************************************************************
@@ -1652,6 +1750,20 @@ IF (ASSOCIATED(ptr3d))   ptr3d(:,:,:) = NDWET_MOD(:,:,:)
 !   Get my internal MAPL_Generic state
 !   -----------------------------------
     call MAPL_GetObjectFromGC (GC, MAPL, __RC__)
+
+
+    call ESMF_ClockGet (clock, currTime=time, __RC__)
+    call ESMF_TimeGet (time ,YY=iyr, MM=imm, DD=idd, H=ihr, M=imn, S=isc, __RC__)
+    call MAPL_PackTime (nymd, iyr, imm , idd)
+    call MAPL_PackTime (nhms, ihr, imn, isc)
+
+    CALL MAPL_Get(mapl, RUNALARM=ALARM, __RC__)
+    RunRightNow = ESMF_AlarmIsRinging(ALARM, __RC__)
+!   if (mapl_am_i_root()) PRINT*,'OH HMS2, alarm:',nhms,RunRightNow
+    IF ( .NOT. RunRightNow ) THEN
+      RETURN_(ESMF_SUCCESS)
+    END IF
+
 
 !   Get parameters from generic state.
 !   -----------------------------------
@@ -1668,6 +1780,8 @@ IF (ASSOCIATED(ptr3d))   ptr3d(:,:,:) = NDWET_MOD(:,:,:)
 !!  In G2G, here is where they call Chem_Settling, and (for each bin) DryDeposition
 
 !!  In G2G, here is where they call WetRemovalGOCART2G for each bin, and Aero_Compute_Diags
+
+    CALL ESMF_AlarmRingerOff(ALARM, __RC__)
 
     RETURN_(ESMF_SUCCESS)
 
@@ -1739,6 +1853,14 @@ IF (ASSOCIATED(ptr3d))   ptr3d(:,:,:) = NDWET_MOD(:,:,:)
     RETURN_(ESMF_SUCCESS)
 
   end subroutine Run_data
+
+!!
+!!
+!!  Finalize would require that QuickChem (parent GC) also has Finalize
+!!
+!!      If implemented, it should free  self%OH_ML
+!!
+!!
 
 
 !EOC
