@@ -7,7 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.0] - 2022-00-00
 
+### Changed
+- Optimized OH by reducing the number of calls to XGBoost
+
 ### Added
 
 - Initial release of QuickChem repository
 - Added changelog enforcer and yaml validator GitHub actions
+- Added routine IS_QC_INSTANCE_RUNNING, to be called by the parent GridComp
+- Added OH flag compute_once_per_day, and support for RUNALARM
