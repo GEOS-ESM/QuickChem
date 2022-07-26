@@ -19,10 +19,10 @@ XGBoost_0.81_File: /discover/nobackup/mmanyin/CCM/run/oh26/OH_model/OH_Tuned_M01
 XGBoost_1.6.0_File: /discover/nobackup/mmanyin/CCM/OH_Boost/XGBoost_1.6.0/xgboh_UpDwnALBUVSZAAll_NoGMIALB_NoScale_NoRegressor_NewXGB_M01.model
 XGBoostFile: /discover/nobackup/mmanyin/CCM/OH_Boost/XGBoost_1.6.0/xgboh_UpDwnALBUVSZAAll_NoGMIALB_NoScale_NoRegressor_NewXGB_M01.model
 
-#
 #  Options are  PRECOMPUTED, ONLINE_INST, ONLINE_AVG24
+#  If using ONLINE_AVG24, then you should set  compute_once_per_day = TRUE
 OH_data_source: ONLINE_AVG24
-#
+
 #  If true,  OH imports both the instantaneous and 24hr average fields for T, P, etc
 #            This allows for the use of instantaneous fields when tavg fields are all zero.
 #  If false, OH imports only the 24hr average fields; NOTE - they must be in the OH_import_rst
@@ -30,3 +30,9 @@ spinup_24hr_imports: T
 
 # For GOCART2G scattering coefficient, which wavelength to use
 wavelength_for_scacoef: 550
+
+#  If true, only compute w/ Boost during the first timestep of every day
+#           (best to use with ONLINE_AVG24 input)
+#  If false, compute at every timestep
+#           (good when input parameters change over the course of the day)
+compute_once_per_day: T

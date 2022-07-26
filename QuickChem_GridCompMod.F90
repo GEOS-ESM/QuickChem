@@ -1,5 +1,7 @@
 #include "MAPL_Generic.h"
 
+#define QUICKCHEM_RESOURCE_FILE 'QuickChem_GridComp.rc'
+
 !=============================================================================
 !BOP
 
@@ -25,6 +27,7 @@ module QuickChem_GridCompMod
 
 ! !PUBLIC MEMBER FUNCTIONS:
    public  SetServices
+   public  IS_QC_INSTANCE_RUNNING
 
   ! Private State
   type :: Instance
@@ -95,7 +98,7 @@ contains
 !
 !   Locals
     character (len=ESMF_MAXSTR)                   :: COMP_NAME 
-    type (ESMF_Config)                            :: myCF      ! QuickChem_GridComp.rc
+    type (ESMF_Config)                            :: myCF      ! QUICKCHEM_RESOURCE_FILE
     type (ESMF_Config)                            :: cf        ! universal config
     type (QuickChem_State), pointer               :: self
     type (wrap_)                                  :: wrap
@@ -130,11 +133,11 @@ contains
     VERIFY_(STATUS)
 
     myCF = ESMF_ConfigCreate (__RC__)
-    call ESMF_ConfigLoadFile (myCF, 'QuickChem_GridComp.rc', __RC__)
+    call ESMF_ConfigLoadFile (myCF, QUICKCHEM_RESOURCE_FILE, __RC__)
 
 !!! OLD GOCART2G section, saved as an example:
 !!!
-!   Retrieve wavelengths from QuickChem_GridComp.rc
+!   Retrieve wavelengths from QUICKCHEM_RESOURCE_FILE
 !   n_wavelengths_profile = ESMF_ConfigGetLen (myCF, label='wavelengths_for_profile_aop_in_nm:', __RC__)
 !   n_wavelengths_vertint = ESMF_ConfigGetLen (myCF, label='wavelengths_for_vertically_integrated_aop_in_nm:', __RC__)
 !   n_wavelengths_diagmie = ESMF_ConfigGetLen (myCF, label='aerosol_monochromatic_optics_wavelength_in_nm_from_LUT:', __RC__)
@@ -160,7 +163,7 @@ contains
 
 !   Nitrate currently only supports one active instance
 !   if (self%NI%n_active > 1) then
-!      if(mapl_am_i_root()) print*,'WARNING: GOCART can only support one active nitrate instance. Check the RC/QuickChem_GridComp.rc'
+!      if(mapl_am_i_root()) print*,'WARNING: GOCART can only support one active nitrate instance. Check the RC/'//QUICKCHEM_RESOURCE_FILE
 !   end if
 
     call ESMF_ConfigDestroy(myCF, __RC__)
@@ -426,14 +429,14 @@ contains
 
 !===============================================================================
 
-  subroutine getInstances_ (aerosol, myCF, species, rc)
+  subroutine getInstances_ (species_name, myCF, species, rc)
 
 !   Description: Fills the QuickChem_State (aka, self%instance_XYZ) with user
-!                defined instances from the QuickChem_GridComp.rc.
+!                defined instances from the QUICKCHEM_RESOURCE_FILE
 
     implicit none
 
-    character (len=*),                intent(in   )  :: aerosol
+    character (len=*),                intent(in   )  :: species_name
     type (ESMF_Config),               intent(inout)  :: myCF
     type(Constituent),                intent(inout)  :: species
     integer,                          intent(  out)  :: rc
@@ -451,13 +454,13 @@ contains
 !--------------------------------------------------------------------------------------
 
 !   Begin...
-    n_active  = ESMF_ConfigGetLen (myCF, label='ACTIVE_INSTANCES_'//trim(aerosol)//':', __RC__)
-    n_passive = ESMF_ConfigGetLen (myCF, label='PASSIVE_INSTANCES_'//trim(aerosol)//':', __RC__)
+    n_active  = ESMF_ConfigGetLen (myCF, label='ACTIVE_INSTANCES_'//trim(species_name)//':', __RC__)
+    n_passive = ESMF_ConfigGetLen (myCF, label='PASSIVE_INSTANCES_'//trim(species_name)//':', __RC__)
     n_instances = n_active + n_passive
     allocate (species%instances(n_instances), __STAT__)
 
 !   !Fill the instances list with active instances first
-    call ESMF_ConfigFindLabel (myCF, 'ACTIVE_INSTANCES_'//trim(aerosol)//':', __RC__)
+    call ESMF_ConfigFindLabel (myCF, 'ACTIVE_INSTANCES_'//trim(species_name)//':', __RC__)
     do i = 1, n_active
        call ESMF_ConfigGetAttribute (myCF, inst_name, __RC__)
        species%instances(i)%name = inst_name
@@ -466,7 +469,7 @@ contains
     species%n_active = n_active
 
 !   !Now fill instances list with passive instances
-    call ESMF_ConfigFindLabel (myCF, 'PASSIVE_INSTANCES_'//trim(aerosol)//':', __RC__)
+    call ESMF_ConfigFindLabel (myCF, 'PASSIVE_INSTANCES_'//trim(species_name)//':', __RC__)
     do i = n_active+1, n_active+n_passive
        call ESMF_ConfigGetAttribute (myCF, inst_name, __RC__)
        species%instances(i)%name = inst_name
@@ -533,5 +536,73 @@ contains
      end subroutine addChildren__
 
   end subroutine createInstances_
+
+! !IROUTINE: IS_QC_INSTANCE_RUNNING -- Scan the resource file for Instance name
+
+! !INTERFACE:
+
+  subroutine IS_QC_INSTANCE_RUNNING (species_name, instance_name, running, RC)
+
+    implicit none
+
+! !ARGUMENTS:
+
+    character (len=*),   intent(in   )  :: species_name
+    character (len=*),   intent(in   )  :: instance_name
+    logical,             intent(  out)  :: running
+    integer, optional                   :: RC  ! return code
+
+! !DESCRIPTION: Determine whether a particular instance is running
+!   by interrogating the .rc file; intended to help parent GC determine
+!   whether to AddConnectivity
+
+! !REVISION HISTORY:
+
+!  11jul2022  Manyin - first crack
+
+!EOP
+!============================================================================
+!
+!   Locals
+
+    type (ESMF_Config)                  :: myCF      ! fill from QUICKCHEM_RESOURCE_FILE
+    integer                             :: i
+    integer                             :: n_active
+    integer                             :: n_passive
+    integer                             :: n_instances
+    character (len=ESMF_MAXSTR)         :: inst_name
+
+    __Iam__('QuickChem::IS_QC_INSTANCE_RUNNING')
+
+    running = .FALSE. 
+
+    myCF = ESMF_ConfigCreate (__RC__)
+
+    call ESMF_ConfigLoadFile (myCF, QUICKCHEM_RESOURCE_FILE, __RC__)
+
+    n_active  = ESMF_ConfigGetLen (myCF, label= 'ACTIVE_INSTANCES_'//trim(species_name)//':', __RC__)
+    n_passive = ESMF_ConfigGetLen (myCF, label='PASSIVE_INSTANCES_'//trim(species_name)//':', __RC__)
+    n_instances = n_active + n_passive
+
+!   !Check the active instances first
+    call ESMF_ConfigFindLabel (myCF, 'ACTIVE_INSTANCES_'//trim(species_name)//':', __RC__)
+    do i = 1, n_active
+       call ESMF_ConfigGetAttribute (myCF, inst_name, __RC__)
+       if ( TRIM(inst_name) == TRIM(instance_name) ) running = .TRUE.
+    end do
+
+!   !Now check the passive instances
+    call ESMF_ConfigFindLabel (myCF, 'PASSIVE_INSTANCES_'//trim(species_name)//':', __RC__)
+    do i = n_active+1, n_active+n_passive
+       call ESMF_ConfigGetAttribute (myCF, inst_name, __RC__)
+       if ( TRIM(inst_name) == TRIM(instance_name) ) running = .TRUE.
+    end do
+
+    call ESMF_ConfigDestroy(myCF, __RC__)
+
+    RETURN_(ESMF_SUCCESS)
+
+  end subroutine IS_QC_INSTANCE_RUNNING
+
 
 end module QuickChem_GridCompMod
