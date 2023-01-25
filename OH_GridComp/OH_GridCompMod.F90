@@ -65,6 +65,9 @@ module OH_GridCompMod
 !  If true, only call Boost during the first timestep of the day
        LOGICAL :: compute_once_per_day
 
+!  Value to scale the boost OH by
+       REAL :: OHscale
+
 !  Get Scattering Coefficient values from GOCART2G
        INTEGER :: n_wavelengths_profile   ! Size of the 4th dimension for SCACOEF fields
        REAL    :: wavelength_for_scacoef  ! Wavelength value to be used
@@ -560,6 +563,8 @@ contains
     call ESMF_ConfigGetAttribute(cfg, self%spinup_24hr_imports,    label='spinup_24hr_imports:',    __RC__)
 
     call ESMF_ConfigGetAttribute(cfg, self%wavelength_for_scacoef, label='wavelength_for_scacoef:', __RC__)
+
+    call ESMF_ConfigGetAttribute(cfg, self%OHscale, label='OHscale:', __RC__)
 
     call ESMF_ConfigDestroy(cfg, __RC__)
 
@@ -1546,6 +1551,9 @@ contains
         CALL predict_OH_with_XGB( XGBoostFilename, im, jm, km, dynamic_k_range, tropp_min, &
                                   PL_MOD, TROPP_MOD, bb, self%OH_ML, __RC__ )
 
+        ! apply scaling factor to OH predicted by boost
+        self%OH_ML(:,:,:) = self%OH_ML(:,:,:) * self%OHscale
+
         CALL MAPL_GetPointer(export, ptr3d,     'OH_boost',     __RC__)
         IF (ASSOCIATED(ptr3d))   ptr3d(:,:,:) = self%OH_ML(:,:,:)
 
@@ -1639,8 +1647,15 @@ contains
       IF (ASSOCIATED(ptr3d))       ptr3d(:,:,:) = ZLE_BST
 
       CALL MAPL_GetPointer(export, ptr3d,   'DIAG_AOD',            __RC__)
+
       IF (ASSOCIATED(ptr3d))       ptr3d(:,:,:) = AOD
 
+      CALL MAPL_GetPointer(export, ptr3d,   'DIAG_C2H6',           __RC__)
+      IF (ASSOCIATED(ptr3d))       ptr3d(:,:,:) = bb%C2H6
+
+      CALL MAPL_GetPointer(export, ptr3d,   'DIAG_ISOP',           __RC__)
+      IF (ASSOCIATED(ptr3d))       ptr3d(:,:,:) = bb%ISOP
+      
 
       CALL MAPL_GetPointer(export, ptr3d, 'DIAG_SC_BC',       __RC__)
       IF (ASSOCIATED(ptr3d)) THEN
