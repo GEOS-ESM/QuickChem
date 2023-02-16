@@ -38,4 +38,5 @@ wavelength_for_scacoef: 550
 compute_once_per_day: T
 
 # apply scaling factor to OH (set to 1 for no scaling)
+# OHscale < 1 accounts for high bias in the OH in the MERRA2-GMI training dataset
 OHscale: 0.85

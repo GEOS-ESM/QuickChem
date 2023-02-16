@@ -564,7 +564,7 @@ contains
 
     call ESMF_ConfigGetAttribute(cfg, self%wavelength_for_scacoef, label='wavelength_for_scacoef:', __RC__)
 
-    call ESMF_ConfigGetAttribute(cfg, self%OHscale, label='OHscale:', __RC__)
+    call ESMF_ConfigGetAttribute(cfg, self%OHscale,                label='OHscale:',                __RC__)
 
     call ESMF_ConfigDestroy(cfg, __RC__)
 
@@ -1647,7 +1647,6 @@ contains
       IF (ASSOCIATED(ptr3d))       ptr3d(:,:,:) = ZLE_BST
 
       CALL MAPL_GetPointer(export, ptr3d,   'DIAG_AOD',            __RC__)
-
       IF (ASSOCIATED(ptr3d))       ptr3d(:,:,:) = AOD
 
       CALL MAPL_GetPointer(export, ptr3d,   'DIAG_C2H6',           __RC__)
