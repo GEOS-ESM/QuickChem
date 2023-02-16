@@ -9,9 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added a scaling factor to scale OH by a constant
+- Added exports for OH
+
 ### Changed
 
 - Moved to GitHub Actions for label enforcement
+- Changed OH Boost file to be climatology rather than single month
 
 ### Fixed
 

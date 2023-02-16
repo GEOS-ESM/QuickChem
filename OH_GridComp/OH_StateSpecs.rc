@@ -66,6 +66,8 @@ category: EXPORT
  DIAG_SC_NI      | ???     | xyz  | C    |           | Diagnostic of SCACOEF for NI
  DIAG_AOD        | ???     | xyz  | C    |           | Diagnostic of AOD
  DIAG_NDWET      | ???     | xyz  | C    |           | Diagnostic of Moist Air NUMDENS
+ DIAG_C2H6	 | ???	   | xyz  | C	 |	     | Diagnostic of C2H6 in OH
+ DIAG_ISOP	 | ???	   | xyz  | C	 |	     | Diagnsotic of isoprene in OH
 #........................................................................................
  DIAG_ZLE        | ???     | xyz  | E    |           | Diagnostic of ZLE
 #........................................................................................
