@@ -37,6 +37,7 @@ oh_OH           mol/mol    N        Y     %y4-%m2-%d2t12:00:00    none     none 
 # in case the GOCART modules are not running:
 oh_BCSCACOEF   m-1   N   Y   %y4-%m2-%d2t12:00:00    none     none    BCSCACOEF    /discover/nobackup/projects/gmao/merra2_gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_adf_Nv.%y4%m2%d2.nc4
 oh_OCSCACOEF   m-1   N   Y   %y4-%m2-%d2t12:00:00    none     none    OCSCACOEF    /discover/nobackup/projects/gmao/merra2_gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_adf_Nv.%y4%m2%d2.nc4
+oh_BRSCACOEF   m-1   N   Y   %y4-%m2-%d2t12:00:00    none     none    BRSCACOEF    /dev/null
 oh_DUSCACOEF   m-1   N   Y   %y4-%m2-%d2t12:00:00    none     none    DUSCACOEF    /discover/nobackup/projects/gmao/merra2_gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_adf_Nv.%y4%m2%d2.nc4
 oh_SUSCACOEF   m-1   N   Y   %y4-%m2-%d2t12:00:00    none     none    SUSCACOEF    /discover/nobackup/projects/gmao/merra2_gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_adf_Nv.%y4%m2%d2.nc4
 oh_SSSCACOEF   m-1   N   Y   %y4-%m2-%d2t12:00:00    none     none    SSSCACOEF    /discover/nobackup/projects/gmao/merra2_gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_adf_Nv.%y4%m2%d2.nc4

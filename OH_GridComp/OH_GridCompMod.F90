@@ -719,6 +719,7 @@ contains
 
      ADD_IMPORT_NORST_4DC( 'BCSCACOEF',   'Black Carbon Scattering Coefficient [550 nm]', 'm-1' )
      ADD_IMPORT_NORST_4DC( 'OCSCACOEF', 'Organic Carbon Scattering Coefficient [550 nm]', 'm-1' )
+     ADD_IMPORT_NORST_4DC( 'BRSCACOEF',   'Brown Carbon Scattering Coefficient [550 nm]', 'm-1' )
      ADD_IMPORT_NORST_4DC( 'DUSCACOEF', '          Dust Scattering Coefficient [550 nm]', 'm-1' )
      ADD_IMPORT_NORST_4DC( 'SUSCACOEF', '           SO4 Scattering Coefficient [550 nm]', 'm-1' )
      ADD_IMPORT_NORST_4DC( 'SSSCACOEF',       'Sea Salt Scattering Coefficient [550 nm]', 'm-1' )
@@ -747,6 +748,7 @@ contains
 
      ADD_IMPORT_24_4DC( 'BCSCACOEF_avg24', 'daily_mean_Black_Carbon_Scattering_Coefficient_[550_nm]',   'm-1'     )
      ADD_IMPORT_24_4DC( 'OCSCACOEF_avg24', 'daily_mean_Organic_Carbon_Scattering_Coefficient_[550_nm]', 'm-1'     )
+     ADD_IMPORT_24_4DC( 'BRSCACOEF_avg24', 'daily_mean_Brown_Carbon_Scattering_Coefficient_[550_nm]',   'm-1'     )
      ADD_IMPORT_24_4DC( 'DUSCACOEF_avg24', 'daily_mean_Dust_Scattering_Coefficient_[550_nm]',           'm-1'     )
      ADD_IMPORT_24_4DC( 'SUSCACOEF_avg24', 'daily_mean_SO4_Scattering_Coefficient_[550_nm]',            'm-1'     )
      ADD_IMPORT_24_4DC( 'SSSCACOEF_avg24', 'daily_mean_Sea_Salt_Scattering_Coefficient_[550_nm]',       'm-1'     )
@@ -772,6 +774,7 @@ contains
      ! Archived SCACOEF fields are 3D
      ADD_IMPORT_NORST_3DC( 'oh_BCSCACOEF',   'Black Carbon Scattering Coefficient [550 nm]', 'm-1'     )
      ADD_IMPORT_NORST_3DC( 'oh_OCSCACOEF', 'Organic Carbon Scattering Coefficient [550 nm]', 'm-1'     )
+     ADD_IMPORT_NORST_3DC( 'oh_BRSCACOEF',   'Brown Carbon Scattering Coefficient [550 nm]', 'm-1'     )
      ADD_IMPORT_NORST_3DC( 'oh_DUSCACOEF',           'Dust Scattering Coefficient [550 nm]', 'm-1'     )
      ADD_IMPORT_NORST_3DC( 'oh_SUSCACOEF',            'SO4 Scattering Coefficient [550 nm]', 'm-1'     )
      ADD_IMPORT_NORST_3DC( 'oh_SSSCACOEF',       'Sea Salt Scattering Coefficient [550 nm]', 'm-1'     )
@@ -1050,6 +1053,7 @@ contains
       ! from original GOCART
       REAL, POINTER, DIMENSION(:,:,:)   ::  BCscacoef_3D  => null()
       REAL, POINTER, DIMENSION(:,:,:)   ::  OCscacoef_3D  => null()
+      REAL, POINTER, DIMENSION(:,:,:)   ::  BRscacoef_3D  => null()
       REAL, POINTER, DIMENSION(:,:,:)   ::  DUscacoef_3D  => null()
       REAL, POINTER, DIMENSION(:,:,:)   ::  SUscacoef_3D  => null()
       REAL, POINTER, DIMENSION(:,:,:)   ::  SSscacoef_3D  => null()
@@ -1058,6 +1062,7 @@ contains
       ! from GOCART2G
       REAL, POINTER, DIMENSION(:,:,:,:) ::  BCscacoef_4D  => null()
       REAL, POINTER, DIMENSION(:,:,:,:) ::  OCscacoef_4D  => null()
+      REAL, POINTER, DIMENSION(:,:,:,:) ::  BRscacoef_4D  => null()
       REAL, POINTER, DIMENSION(:,:,:,:) ::  DUscacoef_4D  => null()
       REAL, POINTER, DIMENSION(:,:,:,:) ::  SUscacoef_4D  => null()
       REAL, POINTER, DIMENSION(:,:,:,:) ::  SSscacoef_4D  => null()
@@ -1394,6 +1399,14 @@ contains
            if ( .NOT. self%use_inst_values )     CALL MAPL_GetPointer(import, OCscacoef_4D,     'OCSCACOEF_avg24', __RC__ )
       endif
 
+      if ( self%OH_data_source == PRECOMPUTED  ) CALL MAPL_GetPointer(import, BRscacoef_3D,  'oh_BRSCACOEF',       __RC__ )
+      if ( self%OH_data_source == ONLINE_INST  ) CALL MAPL_GetPointer(import, BRscacoef_4D,     'BRSCACOEF',       __RC__ )
+      if ( self%OH_data_source == ONLINE_AVG24 ) then
+           if (       self%use_inst_values )     CALL MAPL_GetPointer(import, BRscacoef_4D,     'BRSCACOEF',       __RC__ )
+           if ( .NOT. self%use_inst_values )     CALL MAPL_GetPointer(import, BRscacoef_4D,     'BRSCACOEF_avg24', __RC__ )
+      endif
+
+
       if ( self%OH_data_source == PRECOMPUTED  ) CALL MAPL_GetPointer(import, DUscacoef_3D,  'oh_DUSCACOEF',       __RC__ )
       if ( self%OH_data_source == ONLINE_INST  ) CALL MAPL_GetPointer(import, DUscacoef_4D,     'DUSCACOEF',       __RC__ )
       if ( self%OH_data_source == ONLINE_AVG24 ) then
@@ -1440,11 +1453,12 @@ contains
    !  Aerosol Optical Depth
    !  ---------------------
       IF ( self%OH_data_source == PRECOMPUTED  ) THEN
-        aod = gridBoxThickness * ( BCscacoef_3D + OCscacoef_3D + DUscacoef_3D + &
+        aod = gridBoxThickness * ( BCscacoef_3D + OCscacoef_3D + BRscacoef_3D + DUscacoef_3D + &
                                    SUscacoef_3D + SSscacoef_3D + NIscacoef_3D )
       ELSE
         aod = gridBoxThickness * ( BCscacoef_4D(:,:,:,self%wavelength_index) + &
                                    OCscacoef_4D(:,:,:,self%wavelength_index) + &
+                                   BRscacoef_4D(:,:,:,self%wavelength_index) + &
                                    DUscacoef_4D(:,:,:,self%wavelength_index) + &
                                    SUscacoef_4D(:,:,:,self%wavelength_index) + &
                                    SSscacoef_4D(:,:,:,self%wavelength_index) + &
@@ -1670,6 +1684,14 @@ contains
           ptr3d(:,:,:) =     OCscacoef_3D
         ELSE
           ptr3d(:,:,:) =     OCscacoef_4D(:,:,:,self%wavelength_index)
+        ENDIF
+      ENDIF
+      CALL MAPL_GetPointer(export, ptr3d, 'DIAG_SC_BR',       __RC__)
+      IF (ASSOCIATED(ptr3d)) THEN
+        IF ( self%OH_data_source == PRECOMPUTED ) THEN
+          ptr3d(:,:,:) =     BRscacoef_3D
+        ELSE
+          ptr3d(:,:,:) =     BRscacoef_4D(:,:,:,self%wavelength_index)
         ENDIF
       ENDIF
       CALL MAPL_GetPointer(export, ptr3d, 'DIAG_SC_DU',       __RC__)

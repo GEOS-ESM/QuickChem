@@ -1,19 +1,13 @@
 How to check out and set up the latest version
 
-As of July 26, 2022  (with modification Feb 27, 2023)
-These commands will clone and build the most recent release of QuickChem:
-
-mkdir QUICKCHEM_2022-07-26
-cd QUICKCHEM_2022-07-26/
+As of March 6, 2023  
+These commands will clone and build the most recent release of QuickChem on NCCS discover:  
+  
+mkdir QUICKCHEM_2023-03-06  
+cd QUICKCHEM_2023-03-06/
 git clone git@github.com:GEOS-ESM/GEOSgcm.git
 cd GEOSgcm/
-git checkout remotes/origin/feature/mmanyin/QUICKCHEM_v1
-mepo clone
-
-To gain access to the latest QuickChem features:
-pushd src/Components/@GEOSgcm_GridComp/GEOSagcm_GridComp/GEOSphysics_GridComp/@GEOSchem_GridComp/@QuickChem
-git checkout remotes/origin/main
-popd
+git checkout remotes/origin/feature/mmanyin/QUICKCHEM_DEV
 parallel_build.csh -mepo -walltime 00:50:00 -q debug -account s1043 -no-tar
 
 To set up an ECCOH experiment, first run gcm_setup.
@@ -22,7 +16,7 @@ Be sure to ask for Cascade Lake nodes.
 If running with AMIP emissions,
 /bin/cp <sandbox>/install/etc/AMIP/Chem_Registry.rc RC/
 
-Then edit these 6 files:
+Then edit these 5 files:
 
 ===== RC/Chem_Registry.rc
 
@@ -73,10 +67,5 @@ OH_IMPORT_RESTART_FILE: oh_import_rst
 OH_IMPORT_CHECKPOINT_FILE: oh_import_checkpoint
 OH_IMPORT_CHECKPOINT_TYPE: default
 
-===== RC/OH_GridComp_ExtData.rc
-
-vi command:
-%s+/discover/nobackup/projects/gmao/merra2_gmi/pub+/css/merra2gmi/pub+
 
 ===== ALSO you may want to edit HISTORY.rc to include fields such as 'GOCART::CH4' and 'GOCART::CO' from GOCART, and 'OH' from OH
-
