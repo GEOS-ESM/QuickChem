@@ -1,0 +1,82 @@
+How to check out and set up the latest version
+
+As of July 26, 2022  (with modification Feb 27, 2023)
+These commands will clone and build the most recent release of QuickChem:
+
+mkdir QUICKCHEM_2022-07-26
+cd QUICKCHEM_2022-07-26/
+git clone git@github.com:GEOS-ESM/GEOSgcm.git
+cd GEOSgcm/
+git checkout remotes/origin/feature/mmanyin/QUICKCHEM_v1
+mepo clone
+
+To gain access to the latest QuickChem features:
+pushd src/Components/@GEOSgcm_GridComp/GEOSagcm_GridComp/GEOSphysics_GridComp/@GEOSchem_GridComp/@QuickChem
+git checkout remotes/origin/main
+popd
+parallel_build.csh -mepo -walltime 00:50:00 -q debug -account s1043 -no-tar
+
+To set up an ECCOH experiment, first run gcm_setup.
+Be sure to ask for Cascade Lake nodes.
+
+If running with AMIP emissions,
+/bin/cp <sandbox>/install/etc/AMIP/Chem_Registry.rc RC/
+
+Then edit these 6 files:
+
+===== RC/Chem_Registry.rc
+
+doing_CH4: yes
+
+nbins_CH4: 1
+
+Add this as the first entry in variable_table_CH4:
+CH4 'mol mol-1' Methane
+
+===== gcm_run.j
+
+Change the SLURM constraint to be:
+#SBATCH --constraint="cssro&cas"
+
+Add this line before the section "Rename big ExtData files"
+/bin/ln -sf $EXPDIR/RC/Chem_Registry.rc .
+
+===== RC/GEOS_ChemGridComp.rc
+
+ENABLE_QUICKCHEM: .TRUE.
+
+optional:
+strict_child_timing: .TRUE.
+
+===== RC/OH_instance_OH.rc
+
+If OH_data_source is ONLINE_AVG24 and you don't have the 24-hr averages in oh_import_rst:
+
+spinup_24hr_imports: T
+
+Otherwise set it to F .
+
+===== AGCM.rc
+
+ADD THESE:
+# How often to run OH:
+OH_DT: 3600
+# Set this to the HEARTBEAT in order to run OH during the first timestep of each OH_DT interval:
+OH_REFERENCE_TIME: 000730
+
+UNCOMMENT THESE:
+OH_INTERNAL_RESTART_FILE: oh_internal_rst
+OH_INTERNAL_CHECKPOINT_FILE: oh_internal_checkpoint
+OH_INTERNAL_CHECKPOINT_TYPE: default
+
+OH_IMPORT_RESTART_FILE: oh_import_rst
+OH_IMPORT_CHECKPOINT_FILE: oh_import_checkpoint
+OH_IMPORT_CHECKPOINT_TYPE: default
+
+===== RC/OH_GridComp_ExtData.rc
+
+vi command:
+%s+/discover/nobackup/projects/gmao/merra2_gmi/pub+/css/merra2gmi/pub+
+
+===== ALSO you may want to edit HISTORY.rc to include fields such as 'GOCART::CH4' and 'GOCART::CO' from GOCART, and 'OH' from OH
+
