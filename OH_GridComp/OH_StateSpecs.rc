@@ -60,6 +60,7 @@ category: EXPORT
  DIAG_OH_M2G     | ???     | xyz  | C    |           | Diagnostic of OH
  DIAG_SC_BC      | ???     | xyz  | C    |           | Diagnostic of SCACOEF for BC
  DIAG_SC_OC      | ???     | xyz  | C    |           | Diagnostic of SCACOEF for OC
+ DIAG_SC_BR      | ???     | xyz  | C    |           | Diagnostic of SCACOEF for BR
  DIAG_SC_DU      | ???     | xyz  | C    |           | Diagnostic of SCACOEF for DU
  DIAG_SC_SU      | ???     | xyz  | C    |           | Diagnostic of SCACOEF for SU
  DIAG_SC_SS      | ???     | xyz  | C    |           | Diagnostic of SCACOEF for SS
