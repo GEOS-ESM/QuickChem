@@ -18,43 +18,43 @@ climxx001           'kg kg-1'            Y        N               0             
 #
 # 3D
 #
-oh_NO2          mol/mol    N        Y     %y4-%m2-%d2t12:00:00    none     none    NO2           /discover/nobackup/projects/gmao/merra2_gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_dac_Nv.%y4%m2%d2.nc4
-oh_ALK4         mol/mol    N        Y     %y4-%m2-%d2t12:00:00    none     none    ALK4          /discover/nobackup/projects/gmao/merra2_gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_dac_Nv.%y4%m2%d2.nc4
-oh_ISOP         mol/mol    N        Y     %y4-%m2-%d2t12:00:00    none     none    ISOP          /discover/nobackup/projects/gmao/merra2_gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_dac_Nv.%y4%m2%d2.nc4
-oh_ACET         mol/mol    N        Y     %y4-%m2-%d2t12:00:00    none     none    ACET          /discover/nobackup/projects/gmao/merra2_gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_dac_Nv.%y4%m2%d2.nc4
-oh_PRPE         mol/mol    N        Y     %y4-%m2-%d2t12:00:00    none     none    PRPE          /discover/nobackup/projects/gmao/merra2_gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_dac_Nv.%y4%m2%d2.nc4
-oh_C3H8         mol/mol    N        Y     %y4-%m2-%d2t12:00:00    none     none    C3H8          /discover/nobackup/projects/gmao/merra2_gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_dac_Nv.%y4%m2%d2.nc4
-oh_C2H6         mol/mol    N        Y     %y4-%m2-%d2t12:00:00    none     none    C2H6          /discover/nobackup/projects/gmao/merra2_gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_dac_Nv.%y4%m2%d2.nc4
-oh_O3           mol/mol    N        Y     %y4-%m2-%d2t12:00:00    none     none    O3            /discover/nobackup/projects/gmao/merra2_gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_dac_Nv.%y4%m2%d2.nc4
-oh_CO           mol/mol    N        Y     %y4-%m2-%d2t12:00:00    none     none    CO            /discover/nobackup/projects/gmao/merra2_gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_dac_Nv.%y4%m2%d2.nc4
-oh_CH4          mol/mol    N        Y     %y4-%m2-%d2t12:00:00    none     none    CH4           /discover/nobackup/projects/gmao/merra2_gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_dac_Nv.%y4%m2%d2.nc4
-oh_MP           mol/mol    N        Y     %y4-%m2-%d2t12:00:00    none     none    MP            /discover/nobackup/projects/gmao/merra2_gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_dac_Nv.%y4%m2%d2.nc4
-oh_H2O2         mol/mol    N        Y     %y4-%m2-%d2t12:00:00    none     none    H2O2          /discover/nobackup/projects/gmao/merra2_gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_dac_Nv.%y4%m2%d2.nc4
-oh_CH2O         mol/mol    N        Y     %y4-%m2-%d2t12:00:00    none     none    CH2O          /discover/nobackup/projects/gmao/merra2_gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_dac_Nv.%y4%m2%d2.nc4
-oh_GMITO3       mol/mol    N        Y     %y4-%m2-%d2t12:00:00    none     none    GMITO3        /discover/nobackup/projects/gmao/merra2_gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_2d_dad_Nx.%y4%m2%d2.nc4
-oh_GMITTO3      mol/mol    N        Y     %y4-%m2-%d2t12:00:00    none     none    GMITTO3       /discover/nobackup/projects/gmao/merra2_gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_2d_dad_Nx.%y4%m2%d2.nc4
-oh_OH           mol/mol    N        Y     %y4-%m2-%d2t12:00:00    none     none    OH            /discover/nobackup/projects/gmao/merra2_gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_dac_Nv.%y4%m2%d2.nc4
+oh_NO2          mol/mol    N        Y     %y4-%m2-%d2t12:00:00    none     none    NO2           /css/merra2gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_dac_Nv.%y4%m2%d2.nc4
+oh_ALK4         mol/mol    N        Y     %y4-%m2-%d2t12:00:00    none     none    ALK4          /css/merra2gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_dac_Nv.%y4%m2%d2.nc4
+oh_ISOP         mol/mol    N        Y     %y4-%m2-%d2t12:00:00    none     none    ISOP          /css/merra2gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_dac_Nv.%y4%m2%d2.nc4
+oh_ACET         mol/mol    N        Y     %y4-%m2-%d2t12:00:00    none     none    ACET          /css/merra2gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_dac_Nv.%y4%m2%d2.nc4
+oh_PRPE         mol/mol    N        Y     %y4-%m2-%d2t12:00:00    none     none    PRPE          /css/merra2gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_dac_Nv.%y4%m2%d2.nc4
+oh_C3H8         mol/mol    N        Y     %y4-%m2-%d2t12:00:00    none     none    C3H8          /css/merra2gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_dac_Nv.%y4%m2%d2.nc4
+oh_C2H6         mol/mol    N        Y     %y4-%m2-%d2t12:00:00    none     none    C2H6          /css/merra2gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_dac_Nv.%y4%m2%d2.nc4
+oh_O3           mol/mol    N        Y     %y4-%m2-%d2t12:00:00    none     none    O3            /css/merra2gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_dac_Nv.%y4%m2%d2.nc4
+oh_CO           mol/mol    N        Y     %y4-%m2-%d2t12:00:00    none     none    CO            /css/merra2gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_dac_Nv.%y4%m2%d2.nc4
+oh_CH4          mol/mol    N        Y     %y4-%m2-%d2t12:00:00    none     none    CH4           /css/merra2gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_dac_Nv.%y4%m2%d2.nc4
+oh_MP           mol/mol    N        Y     %y4-%m2-%d2t12:00:00    none     none    MP            /css/merra2gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_dac_Nv.%y4%m2%d2.nc4
+oh_H2O2         mol/mol    N        Y     %y4-%m2-%d2t12:00:00    none     none    H2O2          /css/merra2gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_dac_Nv.%y4%m2%d2.nc4
+oh_CH2O         mol/mol    N        Y     %y4-%m2-%d2t12:00:00    none     none    CH2O          /css/merra2gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_dac_Nv.%y4%m2%d2.nc4
+oh_GMITO3       mol/mol    N        Y     %y4-%m2-%d2t12:00:00    none     none    GMITO3        /css/merra2gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_2d_dad_Nx.%y4%m2%d2.nc4
+oh_GMITTO3      mol/mol    N        Y     %y4-%m2-%d2t12:00:00    none     none    GMITTO3       /css/merra2gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_2d_dad_Nx.%y4%m2%d2.nc4
+oh_OH           mol/mol    N        Y     %y4-%m2-%d2t12:00:00    none     none    OH            /css/merra2gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_dac_Nv.%y4%m2%d2.nc4
 # in case the GOCART modules are not running:
-oh_BCSCACOEF   m-1   N   Y   %y4-%m2-%d2t12:00:00    none     none    BCSCACOEF    /discover/nobackup/projects/gmao/merra2_gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_adf_Nv.%y4%m2%d2.nc4
-oh_OCSCACOEF   m-1   N   Y   %y4-%m2-%d2t12:00:00    none     none    OCSCACOEF    /discover/nobackup/projects/gmao/merra2_gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_adf_Nv.%y4%m2%d2.nc4
+oh_BCSCACOEF   m-1   N   Y   %y4-%m2-%d2t12:00:00    none     none    BCSCACOEF    /css/merra2gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_adf_Nv.%y4%m2%d2.nc4
+oh_OCSCACOEF   m-1   N   Y   %y4-%m2-%d2t12:00:00    none     none    OCSCACOEF    /css/merra2gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_adf_Nv.%y4%m2%d2.nc4
 oh_BRSCACOEF   m-1   N   Y   %y4-%m2-%d2t12:00:00    none     none    BRSCACOEF    /dev/null
-oh_DUSCACOEF   m-1   N   Y   %y4-%m2-%d2t12:00:00    none     none    DUSCACOEF    /discover/nobackup/projects/gmao/merra2_gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_adf_Nv.%y4%m2%d2.nc4
-oh_SUSCACOEF   m-1   N   Y   %y4-%m2-%d2t12:00:00    none     none    SUSCACOEF    /discover/nobackup/projects/gmao/merra2_gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_adf_Nv.%y4%m2%d2.nc4
-oh_SSSCACOEF   m-1   N   Y   %y4-%m2-%d2t12:00:00    none     none    SSSCACOEF    /discover/nobackup/projects/gmao/merra2_gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_adf_Nv.%y4%m2%d2.nc4
-oh_NISCACOEF   m-1   N   Y   %y4-%m2-%d2t12:00:00    none     none    NISCACOEF    /discover/nobackup/projects/gmao/merra2_gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_adf_Nv.%y4%m2%d2.nc4
+oh_DUSCACOEF   m-1   N   Y   %y4-%m2-%d2t12:00:00    none     none    DUSCACOEF    /css/merra2gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_adf_Nv.%y4%m2%d2.nc4
+oh_SUSCACOEF   m-1   N   Y   %y4-%m2-%d2t12:00:00    none     none    SUSCACOEF    /css/merra2gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_adf_Nv.%y4%m2%d2.nc4
+oh_SSSCACOEF   m-1   N   Y   %y4-%m2-%d2t12:00:00    none     none    SSSCACOEF    /css/merra2gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_adf_Nv.%y4%m2%d2.nc4
+oh_NISCACOEF   m-1   N   Y   %y4-%m2-%d2t12:00:00    none     none    NISCACOEF    /css/merra2gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_3d_adf_Nv.%y4%m2%d2.nc4
 #
 # 3-hourly, interp every timestep:
 #
-oh_T           K     N   Y            0              none     none    T            /discover/nobackup/projects/gmao/merra2_gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg3_3d_met_Nv.%y4%m2%d2.nc4
-oh_Q           Pa    N   Y            0              none     none    QV           /discover/nobackup/projects/gmao/merra2_gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg3_3d_met_Nv.%y4%m2%d2.nc4
-oh_TAUCLW      1     N   Y            0              none     none    TAUCLW       /discover/nobackup/projects/gmao/merra2_gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg3_3d_cld_Nv.%y4%m2%d2.nc4
-oh_TAUCLI      1     N   Y            0              none     none    TAUCLI       /discover/nobackup/projects/gmao/merra2_gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg3_3d_cld_Nv.%y4%m2%d2.nc4
-oh_FCLD        1     N   Y            0              none     none    CLOUD        /discover/nobackup/projects/gmao/merra2_gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg3_3d_cld_Nv.%y4%m2%d2.nc4
-oh_PLE         Pa    N   Y            0              none     none    PLE          /discover/nobackup/projects/gmao/merra2_gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg3_3d_mst_Ne.%y4%m2%d2.nc4
-oh_ZLE         m     N   Y            0              none     none    ZLE          /discover/nobackup/projects/gmao/merra2_gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg3_3d_mst_Ne.%y4%m2%d2.nc4
+oh_T           K     N   Y            0              none     none    T            /css/merra2gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg3_3d_met_Nv.%y4%m2%d2.nc4
+oh_Q           Pa    N   Y            0              none     none    QV           /css/merra2gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg3_3d_met_Nv.%y4%m2%d2.nc4
+oh_TAUCLW      1     N   Y            0              none     none    TAUCLW       /css/merra2gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg3_3d_cld_Nv.%y4%m2%d2.nc4
+oh_TAUCLI      1     N   Y            0              none     none    TAUCLI       /css/merra2gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg3_3d_cld_Nv.%y4%m2%d2.nc4
+oh_FCLD        1     N   Y            0              none     none    CLOUD        /css/merra2gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg3_3d_cld_Nv.%y4%m2%d2.nc4
+oh_PLE         Pa    N   Y            0              none     none    PLE          /css/merra2gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg3_3d_mst_Ne.%y4%m2%d2.nc4
+oh_ZLE         m     N   Y            0              none     none    ZLE          /css/merra2gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg3_3d_mst_Ne.%y4%m2%d2.nc4
 #
 # 2D
 #
 oh_ALBUV   transmittance   Y        Y     %y4-%m2-%d2t12:00:00    none     none    LER           /discover/nobackup/mmanyin/CCM/OH/OMILER_345nm_climo_x576_y361_t12.nc4
-oh_TROPP        Pa         N        N     %y4-%m2-%d2t12:00:00    none     none    TROPPB        /discover/nobackup/projects/gmao/merra2_gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_2d_dad_Nx.%y4%m2%d2.nc4
+oh_TROPP        Pa         N        N     %y4-%m2-%d2t12:00:00    none     none    TROPPB        /css/merra2gmi/pub/Y%y4/M%m2/MERRA2_GMI.tavg24_2d_dad_Nx.%y4%m2%d2.nc4
 %%
