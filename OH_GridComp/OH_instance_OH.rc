@@ -14,10 +14,11 @@
 
 nbins: 1
 
-Untuned_GBoostFile: /discover/nobackup/mmanyin/CCM/run/oh26/OH_model/OH_NoTune.bin
-XGBoost_0.81_File: /discover/nobackup/mmanyin/CCM/run/oh26/OH_model/OH_Tuned_M01.bin
-XGBoost_1.6.0_File: /discover/nobackup/mmanyin/CCM/OH_Boost/XGBoost_1.6.0/xgboh_UpDwnALBUVSZAAll_NoGMIALB_NoScale_NoRegressor_NewXGB_M01.model
-XGBoostFile: /discover/nobackup/mmanyin/CCM/OH_Boost/XGBoost_1.6.0/xgboh_UpDwnALBUVSZAAll_NoGMIALB_NoScale_NoRegressor_NewXGB_M%m2.model
+#Untuned_GBoostFile: /discover/nobackup/mmanyin/CCM/run/oh26/OH_model/OH_NoTune.bin
+#XGBoost_0.81_File: /discover/nobackup/mmanyin/CCM/run/oh26/OH_model/OH_Tuned_M01.bin
+#XGBoost_1.6.0_File: /discover/nobackup/mmanyin/CCM/OH_Boost/XGBoost_1.6.0/xgboh_UpDwnALBUVSZAAll_NoGMIALB_NoScale_NoRegressor_NewXGB_M01.model
+#XGBoostFile_MEM: /discover/nobackup/mmanyin/CCM/OH_Boost/XGBoost_1.6.0/xgboh_UpDwnALBUVSZAAll_NoGMIALB_NoScale_NoRegressor_NewXGB_M%m2.model
+XGBoostFile: ExtData/chemistry/XGBoost/v1.6.0/OH/xgboh_UpDwnALBUVSZAAll_NoGMIALB_NoScale_NoRegressor_NewXGB_M%m2.model
 
 #  Options are  PRECOMPUTED, ONLINE_INST, ONLINE_AVG24
 #  If using ONLINE_AVG24, then you should set  compute_once_per_day = TRUE
