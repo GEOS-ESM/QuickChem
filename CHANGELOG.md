@@ -9,10 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 ### Changed
+
+- The copy of OH Boost files in GMAO shared space are now used by default; they were last revised on Apr 26, 2024
+
 ### Fixed
 ### Removed
 
-## [1.1.0] - 2022-03-07
+## [1.1.0] - 2023-03-07
 
 ### Added
 
