@@ -20,6 +20,7 @@ module QuickChem_GridCompMod
 ! !Establish the Childen's SetServices
  !-----------------------------------
    use OH_GridCompMod,    only   : OH_setServices  => SetServices
+   use QCO3_GridCompMod,  only   : O3_setServices  => SetServices
 !  use XX_GridCompMod,    only   : XX_setServices  => SetServices
 
    implicit none
@@ -44,6 +45,7 @@ module QuickChem_GridCompMod
   type QuickChem_State
      private
      type(Constituent) :: OH
+     type(Constituent) :: O3
 !    type(Constituent) :: XX
 !    real, allocatable :: wavelengths_profile(:) ! wavelengths for profile aop [nm]
 !    real, allocatable :: wavelengths_vertint(:) ! wavelengths for vertically integrated aop [nm]
@@ -159,6 +161,7 @@ contains
 !   Get instances for each species
 !   -----------------------------------------------------
     call getInstances_('OH', myCF, species=self%OH, __RC__)
+    call getInstances_('O3', myCF, species=self%O3, __RC__)
 !   call getInstances_('XX', myCF, species=self%XX, __RC__)
 
 !   Nitrate currently only supports one active instance
@@ -183,6 +186,7 @@ contains
 
 !   Allow children of Chemistry to connect to these fields:
     if (size(self%OH%instances) > 0) call MAPL_AddExportSpec (GC, SHORT_NAME='OH', CHILD_ID=self%OH%instances(1)%id, __RC__)
+    if (size(self%O3%instances) > 0) call MAPL_AddExportSpec (GC, SHORT_NAME='O3', CHILD_ID=self%O3%instances(1)%id, __RC__)
 
 !   For an example of adding connectivities between QuickChem species
 !   see GOCART2G_GridCompMod.F90
@@ -507,6 +511,7 @@ contains
 !   This is achieved by arranging the names of the active instances first.
 
     call addChildren__ (gc, self%OH, setServices=OH_setServices, __RC__)
+    call addChildren__ (gc, self%O3, setServices=O3_setServices, __RC__)
 !   call addChildren__ (gc, self%xx, SETsErvices=XX_setServices, __RC__)
 
     RETURN_(ESMF_SUCCESS)

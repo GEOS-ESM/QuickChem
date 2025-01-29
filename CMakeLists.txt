@@ -22,7 +22,7 @@ set (public_libs
 
 esma_add_library (${this}
   SOURCES ${sources}
-  SUBCOMPONENTS QC_Environment OH_GridComp
+  SUBCOMPONENTS QC_Environment OH_GridComp QCO3_GridComp
   SUBDIRS Shared
   PUBLIC_LIBS ${public_libs}
   )
