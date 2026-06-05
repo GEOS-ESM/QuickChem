@@ -389,11 +389,11 @@ contains
 !!     Only free at the end of the program
 !      rc = XGBoosterFree_f(xx_bst)
 !      if(rc /= 0) write(*,*) __FILE__,__LINE__,'Failed in XGBoosterFree_f, Return code: ',rc
-!      VERIFY_(rc)
+!      _VERIFY(rc)
 
       if(debug) write(*,*) 'Finished predict_OH_with_XGB'
 
-      RETURN_(ESMF_SUCCESS)
+      _RETURN(ESMF_SUCCESS)
 
    end subroutine predict_OH_with_XGB
 
@@ -553,7 +553,7 @@ contains
     IF ( TRIM(token) == "ONLINE_AVG24" ) self%OH_data_source = ONLINE_AVG24
     IF ( self%OH_data_source == DS_UNDEFINED ) THEN
       IF (mapl_am_i_root()) PRINT*,'Invalid OH_data_source: '//TRIM(token)
-      VERIFY_(99)
+      _VERIFY(99)
     ELSE
       IF (mapl_am_i_root()) PRINT*,'OH_data source for ONLINE fields: '//TRIM(token)
     ENDIF
@@ -791,13 +791,13 @@ contains
 !   Store internal state in GC
 !   --------------------------
     call ESMF_UserCompSetInternalState ( GC, 'OH_GridComp', wrap, STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
 !   Set generic services
 !   ----------------------------------
     call MAPL_GenericSetServices (GC, __RC__)
 
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
 
   end subroutine SetServices
 
@@ -860,7 +860,7 @@ contains
 !   Get my internal private state
 !   -----------------------------
     call ESMF_UserCompGetInternalState(GC, 'OH_GridComp', wrap, STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     self => wrap%ptr
 
     call MAPL_GridGet ( grid, globalCellCountPerDim=dims, __RC__ )
@@ -944,7 +944,7 @@ contains
 
     call ESMF_ConfigDestroy(cfg, __RC__)
 
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
 
   end subroutine Initialize
 
@@ -1005,7 +1005,7 @@ contains
        call Run1 (GC, import, export, clock, __RC__)
     end if
 
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
 
   end subroutine Run
 
@@ -1158,7 +1158,7 @@ contains
 !   Get my private internal state
 !   ------------------------------
     call ESMF_UserCompGetInternalState(GC, 'OH_GridComp', wrap, STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     self => wrap%ptr
 
 !   Extract nymd(yyyymmdd) from clock
@@ -1181,7 +1181,7 @@ contains
     RunRightNow = ESMF_AlarmIsRinging(ALARM, __RC__)
 !   if (mapl_am_i_root()) PRINT*,'OH HMS1, alarm:',nhms,RunRightNow
     IF ( .NOT. RunRightNow ) THEN
-      RETURN_(ESMF_SUCCESS)
+      _RETURN(ESMF_SUCCESS)
     END IF
 
     call fill_grads_template(XGBoostFilename,self%XGBoostFilePattern,nymd=nymd,nhms=nhms,__RC__)
@@ -1736,7 +1736,7 @@ contains
 
       DEALLOCATE( PL_MOD, TV_MOD, NDWET_MOD, __STAT__ )
 
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
 
   end subroutine Run1
 
@@ -1797,7 +1797,7 @@ contains
     RunRightNow = ESMF_AlarmIsRinging(ALARM, __RC__)
 !   if (mapl_am_i_root()) PRINT*,'OH HMS2, alarm:',nhms,RunRightNow
     IF ( .NOT. RunRightNow ) THEN
-      RETURN_(ESMF_SUCCESS)
+      _RETURN(ESMF_SUCCESS)
     END IF
 
 
@@ -1808,7 +1808,7 @@ contains
 !   Get my private internal state
 !   ------------------------------
     call ESMF_UserCompGetInternalState(GC, 'OH_GridComp', wrap, STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     self => wrap%ptr
 
 !  #include "OH_GetPointer___.h"
@@ -1819,7 +1819,7 @@ contains
 
     CALL ESMF_AlarmRingerOff(ALARM, __RC__)
 
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
 
   end subroutine Run2
 
@@ -1864,7 +1864,7 @@ contains
 !   Get my private internal state
 !   ------------------------------
     call ESMF_UserCompGetInternalState(GC, 'OH_GridComp', wrap, STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     self => wrap%ptr
 
 !   Update internal data pointers with ExtData
@@ -1873,7 +1873,7 @@ contains
 
     IF ( self%nbins /= 1 ) THEN
       PRINT*,'expecting only 1 OH bin'
-      RETURN_(123)
+      _RETURN(123)
     ENDIF
 
     do i = 1, self%nbins
@@ -1886,7 +1886,7 @@ contains
         ptr3d_intern(:,:,:  ) = ptr3d_import
     end do
 
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
 
   end subroutine Run_data
 

@@ -130,7 +130,7 @@ contains
 !   Store internal state in GC
 !   --------------------------
     call ESMF_UserCompSetInternalState (GC, 'QuickChem_State', wrap, STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     myCF = ESMF_ConfigCreate (__RC__)
     call ESMF_ConfigLoadFile (myCF, QUICKCHEM_RESOURCE_FILE, __RC__)
@@ -191,7 +191,7 @@ contains
 !   ----------------------------------
     call MAPL_GenericSetServices (GC, __RC__)
 
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
 
   end subroutine SetServices
 
@@ -262,7 +262,7 @@ contains
 !   Get my internal state
 !   ---------------------
     call ESMF_UserCompGetInternalState (GC, 'QuickChem_State', wrap, STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     self => wrap%ptr
 
     CF = ESMF_ConfigCreate (__RC__)
@@ -277,7 +277,7 @@ contains
 !   see GOCART2G_GridCompMod.F90
 
 
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
 
 
  end subroutine Initialize
@@ -327,7 +327,7 @@ contains
 !   Get my internal MAPL_Generic state
 !   -----------------------------------
     call MAPL_GetObjectFromGC ( GC, MAPL, RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
 !   Get parameters from generic state.
 !   -----------------------------------
@@ -340,7 +340,7 @@ contains
     end do
 
 
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
 
   end subroutine Run1
 
@@ -395,7 +395,7 @@ contains
 !   Get my internal MAPL_Generic state
 !   -----------------------------------
     call MAPL_GetObjectFromGC ( GC, MAPL, RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
 !   Get parameters from generic state.
 !   -----------------------------------
@@ -405,7 +405,7 @@ contains
 !   Get my internal state
 !   ---------------------
     call ESMF_UserCompGetInternalState (GC, 'QuickChem_State', wrap, STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     self => wrap%ptr
 
 #include "QuickChem_GetPointer___.h"
@@ -422,7 +422,7 @@ contains
 
 !   in G2G there was a section that computed total aerosol diagnostic values for export
 
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
 
   end subroutine Run2
 
@@ -477,7 +477,7 @@ contains
     end do
 
 
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
 
   end subroutine getInstances_
 
@@ -509,7 +509,7 @@ contains
     call addChildren__ (gc, self%OH, setServices=OH_setServices, __RC__)
 !   call addChildren__ (gc, self%xx, SETsErvices=XX_setServices, __RC__)
 
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
 
     contains
     
@@ -531,7 +531,7 @@ contains
              species%instances(i)%id = MAPL_AddChild(gc, name=species%instances(i)%name, SS=SetServices, __RC__)
           end do
 
-        RETURN_(ESMF_SUCCESS)
+        _RETURN(ESMF_SUCCESS)
 
      end subroutine addChildren__
 
@@ -600,7 +600,7 @@ contains
 
     call ESMF_ConfigDestroy(myCF, __RC__)
 
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
 
   end subroutine IS_QC_INSTANCE_RUNNING
 
