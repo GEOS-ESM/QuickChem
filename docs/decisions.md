@@ -1,9 +1,9 @@
 # QuickChem decisions
 
 **Audience:** coding agents and developers working on QuickChem.
-**Describes:** the MAPL2 line, branch `main`.
-**Verified against:** `QuickChem` @ e55c214 (2026-11-06).
-**Placement:** as in the GEOSgcm fixture (`components.yaml` @ `0f2e0fb`).
+**Describes:** the MAPL3 line, branch `release/MAPL-v3`.
+**Verified against:** `QuickChem` @ `6547c1b` (2026-11-06).
+**Placement:** as in the GEOSgcm fixture (`components.yaml` @ `f50622d`).
 
 ### Instance-list composite copied from GOCART2G
 - Pattern: the composite reads `ACTIVE_INSTANCES_<species>` / `PASSIVE_INSTANCES_<species>` from `QuickChem_GridComp.rc`, adds one child per name with `MAPL_AddChild`, active first (`QuickChem_GridCompMod.F90`, `getInstances_`, `createInstances_`). [Verified]
@@ -23,5 +23,5 @@
 - Question for maintainers: is the reset in Run2 required by the alarm design (the Run1 comment says so)?
 
 ### Not wired into Chemistry
-- Pattern: no `MAPL_AddChild` for QuickChem and no entry in the parent `CMakeLists.txt` (`../GEOS_ChemGridComp.F90`, `../CMakeLists.txt`). [Verified]
+- Pattern: no `MAPL_AddChild` for QuickChem and no entry in the parent `CMakeLists.txt` (`../GEOS_ChemGridComp.F90`, `../CMakeLists.txt`); on `release/MAPL-v3` the parent builds only GOCART and does not name QuickChem even in its commented-out subdirectory list. [Verified]
 - Question for maintainers: is QuickChem meant to become a Chemistry child, and when?

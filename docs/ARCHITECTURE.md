@@ -1,18 +1,20 @@
 # QuickChem architecture
 
 **Audience:** coding agents and developers working on QuickChem.
-**Describes:** the MAPL2 line, branch `main`.
-**Verified against:** `QuickChem` @ e55c214 (2026-11-06).
-**Placement:** as in the GEOSgcm fixture (`components.yaml` @ `0f2e0fb`, key `QuickChem`, local path `./src/Components/@GEOSgcm_GridComp/GEOSagcm_GridComp/GEOSphysics_GridComp/@GEOSchem_GridComp/@QuickChem`, tag `v1.0.0`, develop branch `main`).
+**Describes:** the MAPL3 line, branch `release/MAPL-v3`.
+**Verified against:** `QuickChem` @ `6547c1b` (2026-11-06).
+**Placement:** as in the GEOSgcm fixture (`components.yaml` @ `f50622d`, key `QuickChem`, local path `./src/Components/@GEOSgcm_GridComp/GEOSagcm_GridComp/GEOSphysics_GridComp/@GEOSchem_GridComp/@QuickChem`, branch `release/MAPL-v3`, develop branch `main`).
 Other fixtures (for example GEOSadas, GEOSldas) may place this repository
 elsewhere; paths inside this repository do not change.
 
-Paths below are relative to this repository's root. Parent document: Chemistry architecture (`../../docs/ARCHITECTURE.md` in the fixture) (section 2.3 lists nested child repositories; section 3 describes the parent).
+**Build status on this line:** not built, not ported. On `release/MAPL-v3`, `@GEOSchem_GridComp/CMakeLists.txt` calls `esma_add_subdirectories(GOCART)` only, with the comment "Restore subdirs as components are ported to MAPL3."; `QuickChem` is not named in that file at all, not even in the commented-out list of subdirectories (`Shared GOCART TR GMI StratChem MAM MATRIX CARMA GAAS ACHEM`), and `GEOS_ChemGridComp.F90` has no reference to it. The code in this repository is the MAPL2 code (it differs from `main` only in `OH_GridComp/OH_instance_OH.rc`, the XGBoost model file path), kept for a later port. The Chemistry top-level library (`GEOS_ChemGridComp.F90`) is present but not compiled on this line: the `esma_add_library` block that builds it is commented out in `../CMakeLists.txt`. Statements about it describe the file as it is. This repository's own `CMakeLists.txt` lists the dependencies `MAPL`, `QC_Shared` (its own `Shared` subdirectory) and `esmf`; it lists neither `Chem_Base` nor `Chem_Shared`.
+
+Paths below are relative to this repository's root. Parent document: Chemistry architecture (`../../docs/ARCHITECTURE.md` in the fixture).
 
 ## 1. Placement
 
-- Parent repository: `GEOSchem_GridComp` (the Chemistry component), at `../` from this repository. Its document records `@QuickChem` as "not wired in" (Chemistry architecture, section 2.3 (`../../docs/ARCHITECTURE.md` in the fixture)).
-- Re-checked here: `grep -i quickchem` finds no match in `../GEOS_ChemGridComp.F90` (no `MAPL_AddChild` for it) and none in `../CMakeLists.txt`. So in the GEOSgcm fixture at `0f2e0fb`, QuickChem is checked out but neither compiled nor run by Chemistry. Nothing in this repository sets that up; the repository's own `CMakeLists.txt` is written to be included by a parent (`esma_set_this`, `esma_add_library`).
+- Parent repository: `GEOSchem_GridComp` (the Chemistry component), at `../` from this repository. On the MAPL2 line the Chemistry document records `@QuickChem` as "not wired in".
+- Re-checked here: `grep -i quickchem` finds no match in `../GEOS_ChemGridComp.F90` (no `MAPL_AddChild` for it) and none in `../CMakeLists.txt`, which on this line builds only GOCART. So in the GEOSgcm fixture at `f50622d`, QuickChem is checked out but neither compiled nor run by Chemistry. Nothing in this repository sets that up; the repository's own `CMakeLists.txt` is written to be included by a parent (`esma_set_this`, `esma_add_library`).
 - *Inferred:* the module's header comment and `README.md` ("Quick Chemistry module") describe a component meant to sit among Chemistry's children; the exported field `OH` has a comment "Allow children of Chemistry to connect to these fields" (`QuickChem_GridCompMod.F90`, SetServices).
 - No child repositories; no nested repositories.
 
@@ -38,7 +40,7 @@ QuickChem is a composite gridded component that holds "quick" chemistry species 
 
 - Parent: none today; Chemistry does not add it (section 1). `IS_QC_INSTANCE_RUNNING` (public) lets a parent ask whether a named instance is active, "to help parent GC determine whether to AddConnectivity" (`QuickChem_GridCompMod.F90`, `IS_QC_INSTANCE_RUNNING`). Nothing in the fixture calls it (grep in `@GEOSchem_GridComp`, excluding other nested repositories, finds no use).
 - Children: one per name in `ACTIVE_INSTANCES_OH` then `PASSIVE_INSTANCES_OH`, each added with `MAPL_AddChild` and `OH_GridCompMod`'s `SetServices` (`QuickChem_GridCompMod.F90`, `getInstances_`, `createInstances_`, `addChildren__`). Default: one active instance `OH` (`QuickChem_GridComp.rc`). The `XX` lines in the rc file are read by nothing; the call for `XX` is commented out.
-- Instance kind comes from the instance name: a name containing `data` is a data-driven instance, otherwise computational (`Shared/QuickChem_Generic.F90`, `determine_data_driven`), the same convention as GOCART2G (Chemistry architecture, section 3.1 (`../../docs/ARCHITECTURE.md` in the fixture)).
+- Instance kind comes from the instance name: a name containing `data` is a data-driven instance, otherwise computational (`Shared/QuickChem_Generic.F90`, `determine_data_driven`), the same convention as GOCART2G.
 - The composite exports one field, `OH`, mapped to the first OH instance's export: `MAPL_AddExportSpec(GC, SHORT_NAME='OH', CHILD_ID=...)` when at least one instance exists (`QuickChem_GridCompMod.F90`, SetServices).
 
 ## 5. Entry points
@@ -75,7 +77,7 @@ OH child (`OH_GridComp/OH_GridCompMod.F90`):
 
 ## 8. Dependencies
 
-- MAPL, ESMF, NetCDF Fortran (`OH_GridComp/CMakeLists.txt`); XGBoost library `xgboost::xgboost`, version 1.6.0 exact, via `find_package` (`Shared/CMakeLists.txt`); the Fortran wrapper `Shared/xgb_fortran_api.F90` binds the C functions (`XGBoosterCreate`, `XGBoosterLoadModel`, `XGBoosterPredict`, `XGDMatrixCreateFromMat`, and others).
+- `OH_GridComp/CMakeLists.txt` lists `QC_Environment`, `MAPL`, `QC_Shared`, `esmf`, `NetCDF::NetCDF_Fortran`; the top-level `CMakeLists.txt` lists `MAPL`, `QC_Shared`, `esmf`; `Shared/CMakeLists.txt` lists `MAPL` and `xgboost::xgboost`. None of them is `Chem_Base` or `Chem_Shared`. Not built on this line; XGBoost library `xgboost::xgboost`, version 1.6.0 exact, via `find_package` (`Shared/CMakeLists.txt`); the Fortran wrapper `Shared/xgb_fortran_api.F90` binds the C functions (`XGBoosterCreate`, `XGBoosterLoadModel`, `XGBoosterPredict`, `XGDMatrixCreateFromMat`, and others).
 - Build structure: the top-level target is `QuickChem` with subcomponents `QC_Environment` and `OH_GridComp` and subdirectory `Shared` (library `QC_Shared`); `mapl_acg` runs on `QuickChem_StateSpecs.rc` and on `OH_StateSpecs.rc` (`CMakeLists.txt`, `OH_GridComp/CMakeLists.txt`). `OH_GridComp` installs every `*.rc` under it to `etc/OH_GridComp`; the top level installs `QuickChem_GridComp.rc` to `etc`.
 - Run-time files: `QuickChem_GridComp.rc`, `OH_instance_<name>.rc`, `AGCM.rc`, `GOCART2G_GridComp.rc`, the XGBoost model files.
 - Runtime cost: `predict_OH_with_XGB` builds a data matrix and loads the model each call (`xgb_fortran_api` calls; the free call is commented out, `OH_GridCompMod.F90`).
