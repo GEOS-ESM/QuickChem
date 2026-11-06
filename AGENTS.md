@@ -24,4 +24,3 @@ GEOSgcm fixture (`components.yaml` @ `0f2e0fb`, key `QuickChem`): `src/Component
 
 ## Build and test
 - Built only as part of GEOSgcm by a parent that includes it (it is not today); needs XGBoost 1.6.0 and MAPL (`Shared/CMakeLists.txt`). No tests in this repository.
-- Use the NAG compiler first, then gfortran, via the `with-nag` and `with-gfortran` wrappers (workspace rules).
