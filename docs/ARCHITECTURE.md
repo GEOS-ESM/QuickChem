@@ -7,11 +7,11 @@
 Other fixtures (for example GEOSadas, GEOSldas) may place this repository
 elsewhere; paths inside this repository do not change.
 
-Paths below are relative to this repository's root. Parent document: [Chemistry architecture](../../docs/ARCHITECTURE.md) (section 2.3 lists nested child repositories; section 3 describes the parent).
+Paths below are relative to this repository's root. Parent document: Chemistry architecture (`../../docs/ARCHITECTURE.md` in the fixture) (section 2.3 lists nested child repositories; section 3 describes the parent).
 
 ## 1. Placement
 
-- Parent repository: `GEOSchem_GridComp` (the Chemistry component), at `../` from this repository. Its document records `@QuickChem` as "not wired in" ([Chemistry architecture, section 2.3](../../docs/ARCHITECTURE.md)).
+- Parent repository: `GEOSchem_GridComp` (the Chemistry component), at `../` from this repository. Its document records `@QuickChem` as "not wired in" (Chemistry architecture, section 2.3 (`../../docs/ARCHITECTURE.md` in the fixture)).
 - Re-checked here: `grep -i quickchem` finds no match in `../GEOS_ChemGridComp.F90` (no `MAPL_AddChild` for it) and none in `../CMakeLists.txt`. So in the GEOSgcm fixture at `0f2e0fb`, QuickChem is checked out but neither compiled nor run by Chemistry. Nothing in this repository sets that up; the repository's own `CMakeLists.txt` is written to be included by a parent (`esma_set_this`, `esma_add_library`).
 - *Inferred:* the module's header comment and `README.md` ("Quick Chemistry module") describe a component meant to sit among Chemistry's children; the exported field `OH` has a comment "Allow children of Chemistry to connect to these fields" (`QuickChem_GridCompMod.F90`, SetServices).
 - No child repositories; no nested repositories.
@@ -38,7 +38,7 @@ QuickChem is a composite gridded component that holds "quick" chemistry species 
 
 - Parent: none today; Chemistry does not add it (section 1). `IS_QC_INSTANCE_RUNNING` (public) lets a parent ask whether a named instance is active, "to help parent GC determine whether to AddConnectivity" (`QuickChem_GridCompMod.F90`, `IS_QC_INSTANCE_RUNNING`). Nothing in the fixture calls it (grep in `@GEOSchem_GridComp`, excluding other nested repositories, finds no use).
 - Children: one per name in `ACTIVE_INSTANCES_OH` then `PASSIVE_INSTANCES_OH`, each added with `MAPL_AddChild` and `OH_GridCompMod`'s `SetServices` (`QuickChem_GridCompMod.F90`, `getInstances_`, `createInstances_`, `addChildren__`). Default: one active instance `OH` (`QuickChem_GridComp.rc`). The `XX` lines in the rc file are read by nothing; the call for `XX` is commented out.
-- Instance kind comes from the instance name: a name containing `data` is a data-driven instance, otherwise computational (`Shared/QuickChem_Generic.F90`, `determine_data_driven`), the same convention as GOCART2G ([Chemistry architecture, section 3.1](../../docs/ARCHITECTURE.md)).
+- Instance kind comes from the instance name: a name containing `data` is a data-driven instance, otherwise computational (`Shared/QuickChem_Generic.F90`, `determine_data_driven`), the same convention as GOCART2G (Chemistry architecture, section 3.1 (`../../docs/ARCHITECTURE.md` in the fixture)).
 - The composite exports one field, `OH`, mapped to the first OH instance's export: `MAPL_AddExportSpec(GC, SHORT_NAME='OH', CHILD_ID=...)` when at least one instance exists (`QuickChem_GridCompMod.F90`, SetServices).
 
 ## 5. Entry points
