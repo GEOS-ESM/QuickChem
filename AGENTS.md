@@ -6,7 +6,7 @@ Quick Chemistry gridded component (MAPL2 line): a composite holding fast-chemist
 GEOSgcm fixture (`components.yaml` @ `0f2e0fb`, key `QuickChem`): `src/Components/@GEOSgcm_GridComp/GEOSagcm_GridComp/GEOSphysics_GridComp/@GEOSchem_GridComp/@QuickChem`. Parent: Chemistry (`GEOSchem_GridComp`). **Not wired in**: the parent has no `MAPL_AddChild` for it and does not build it. Other fixtures may place it elsewhere.
 
 ## Documents
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): placement, file map, entry points, state, configuration, dependencies, traps, observations. Links up to the [Chemistry architecture](../docs/ARCHITECTURE.md).
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): placement, file map, entry points, state, configuration, dependencies, traps, observations. Links up to the Chemistry architecture (`../docs/ARCHITECTURE.md` in the fixture).
 - [docs/decisions.md](docs/decisions.md): architectural decisions.
 
 ## Layout
